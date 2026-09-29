@@ -72,12 +72,11 @@
                 <h3 id="modal-title" class="text-lg font-bold text-white mb-2">Notice</h3>
                 <p id="modal-message" class="text-sm text-slate-300 mb-6"></p>
                 <div id="modal-buttons" class="flex justify-end gap-3">
-                    <button id="modal-ok-btn" onclick="app.closeModal()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition">OK</button>
+                    <button id="modal-ok-btn" type="button" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer">OK</button>
                 </div>
             </div>
         </div>
 
-        <!-- ADMIN DASHBOARD VIEW -->
         <div id="admin-view" class="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
             <!-- Header -->
             <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
@@ -91,7 +90,7 @@
                     <span id="sync-status" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         🟢 Cloud Connected
                     </span>
-                    <button onclick="app.launchTVMode()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
+                    <button id="btn-launch-tv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm cursor-pointer">
                         <span>▶ Launch TV Display</span>
                     </button>
                 </div>
@@ -104,10 +103,10 @@
                     
                     <!-- Drag & Drop Uploader Box -->
                     <div id="dropzone" class="border-2 border-dashed border-slate-700 hover:border-brand-500 bg-slate-900/50 hover:bg-slate-900 rounded-2xl p-6 text-center transition cursor-pointer flex flex-col items-center justify-center gap-2">
-                        <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl text-brand-400">
+                        <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl text-brand-400 pointer-events-none">
                             📁
                         </div>
-                        <div>
+                        <div class="pointer-events-none">
                             <p class="font-medium text-slate-200">Drag & drop image or video files here</p>
                             <p class="text-xs text-slate-400 mt-0.5">Supports PNG, JPG, GIF, MP4, WebM</p>
                         </div>
@@ -117,16 +116,16 @@
                     <!-- Slide Management List Header -->
                     <div class="flex items-center justify-between">
                         <h2 class="text-lg font-semibold text-slate-200">Playlist Slides (<span id="slide-count">0</span>)</h2>
-                        <div class="flex gap-2">
-                            <button onclick="app.addTextSlide()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                        <div class="flex flex-wrap gap-2">
+                            <button id="btn-add-text" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
                                 + Add Text Slide
                             </button>
-                            <button onclick="app.exportJSON()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                            <button id="btn-export-json" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
                                 Export JSON
                             </button>
                             <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
                                 Import JSON
-                                <input type="file" id="import-json" accept=".json" class="hidden" onchange="app.importJSON(event)">
+                                <input type="file" id="import-json" accept=".json" class="hidden">
                             </label>
                         </div>
                     </div>
@@ -145,11 +144,11 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Ticker Message Text</label>
-                                <textarea id="ticker-text" rows="3" oninput="app.updateTickerSettings()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500" placeholder="Enter bottom scrolling announcement..."></textarea>
+                                <textarea id="ticker-text" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500" placeholder="Enter bottom scrolling announcement..."></textarea>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-slate-300 font-medium">Show Ticker Bar</span>
-                                <input type="checkbox" id="ticker-enabled" onchange="app.updateTickerSettings()" class="w-4 h-4 accent-brand-500 rounded bg-slate-950 border-slate-800">
+                                <input type="checkbox" id="ticker-enabled" class="w-4 h-4 accent-brand-500 rounded bg-slate-950 border-slate-800 cursor-pointer">
                             </div>
                         </div>
                     </div>
@@ -159,11 +158,11 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Default Slide Duration (Seconds)</label>
-                                <input type="number" id="global-duration" min="2" max="120" value="10" onchange="app.updateGlobalSettings()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
+                                <input type="number" id="global-duration" min="2" max="120" value="10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Transition Effect</label>
-                                <select id="global-transition" onchange="app.updateGlobalSettings()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
+                                <select id="global-transition" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
                                     <option value="fade">Fade</option>
                                     <option value="zoom">Zoom</option>
                                     <option value="slide">Slide</option>
@@ -177,7 +176,6 @@
             </div>
         </div>
 
-        <!-- TV PRESENTATION VIEW (Fullscreen Player with Pure Pitch-Black Stage) -->
         <div id="tv-display" class="fixed inset-0 z-50 flex flex-col hidden select-none bg-black">
             <!-- Fullscreen Media Stage (Pure Black Background #000000) -->
             <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
@@ -192,7 +190,7 @@
             <!-- Floating Exit / Control Bar -->
             <div id="tv-controls" class="absolute top-4 right-4 bg-slate-900/90 border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-4 transition-opacity duration-300 opacity-0 hover:opacity-100 z-50">
                 <span id="tv-status-indicator" class="text-xs text-emerald-400 font-mono">● TV DISPLAY ACTIVE</span>
-                <button onclick="app.exitTVMode()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
+                <button id="btn-exit-tv" type="button" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer">
                     Exit Display Mode
                 </button>
             </div>
@@ -290,7 +288,6 @@
                         const data = await response.json();
                         const remoteState = data.record || data;
                         if (remoteState && remoteState.slides) {
-                            // Only update if remote has valid structure
                             this.state = remoteState;
                             this.saveLocal();
                             this.renderAdmin();
@@ -331,34 +328,85 @@
             }
 
             initListeners() {
+                // Modal OK button
+                const okBtn = document.getElementById('modal-ok-btn');
+                if (okBtn) {
+                    okBtn.addEventListener('click', () => this.closeModal());
+                }
+
+                // Launch TV button
+                const launchBtn = document.getElementById('btn-launch-tv');
+                if (launchBtn) {
+                    launchBtn.addEventListener('click', () => this.launchTVMode());
+                }
+
+                // Exit TV button
+                const exitBtn = document.getElementById('btn-exit-tv');
+                if (exitBtn) {
+                    exitBtn.addEventListener('click', () => this.exitTVMode());
+                }
+
+                // Add Text Slide button
+                const addTextBtn = document.getElementById('btn-add-text');
+                if (addTextBtn) {
+                    addTextBtn.addEventListener('click', () => this.addTextSlide());
+                }
+
+                // Export JSON button
+                const exportBtn = document.getElementById('btn-export-json');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', () => this.exportJSON());
+                }
+
+                // Import JSON input
+                const importInput = document.getElementById('import-json');
+                if (importInput) {
+                    importInput.addEventListener('change', (e) => this.importJSON(e));
+                }
+
+                // Dropzone & File Input
                 const dropzone = document.getElementById('dropzone');
                 const fileInput = document.getElementById('file-input');
 
-                dropzone.addEventListener('click', () => fileInput.click());
-                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-brand-500', 'bg-slate-900'); });
-                dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('border-brand-500', 'bg-slate-900'); });
-                dropzone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropzone.classList.remove('border-brand-500', 'bg-slate-900');
-                    if (e.dataTransfer.files.length) {
-                        this.handleFiles(e.dataTransfer.files);
-                    }
-                });
+                if (dropzone && fileInput) {
+                    dropzone.addEventListener('click', () => fileInput.click());
+                    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-brand-500', 'bg-slate-900'); });
+                    dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('border-brand-500', 'bg-slate-900'); });
+                    dropzone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        dropzone.classList.remove('border-brand-500', 'bg-slate-900');
+                        if (e.dataTransfer.files.length) {
+                            this.handleFiles(e.dataTransfer.files);
+                        }
+                    });
 
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length) {
-                        this.handleFiles(e.target.files);
-                    }
-                });
+                    fileInput.addEventListener('change', (e) => {
+                        if (e.target.files.length) {
+                            this.handleFiles(e.target.files);
+                        }
+                    });
+                }
 
+                // Ticker & Global settings input listeners
+                const tickerText = document.getElementById('ticker-text');
+                const tickerEnabled = document.getElementById('ticker-enabled');
+                const globalDuration = document.getElementById('global-duration');
+                const globalTransition = document.getElementById('global-transition');
+
+                if (tickerText) tickerText.addEventListener('input', () => this.updateTickerSettings());
+                if (tickerEnabled) tickerEnabled.addEventListener('change', () => this.updateTickerSettings());
+                if (globalDuration) globalDuration.addEventListener('change', () => this.updateGlobalSettings());
+                if (globalTransition) globalTransition.addEventListener('change', () => this.updateGlobalSettings());
+
+                // TV mouse/activity listeners
                 let hideTimer;
                 const tvControls = document.getElementById('tv-controls');
                 const showControls = () => {
-                    if (!this.isTVMode) return;
+                    if (!this.isTVMode || !tvControls) return;
                     tvControls.style.opacity = '1';
                     clearTimeout(hideTimer);
                     hideTimer = setTimeout(() => {
-                        if (this.isTVMode) tvControls.style.opacity = '0';
+                        if (this.isTVMode && tvControls) tvControls.style.opacity = '0';
                     }, 3000);
                 };
 
@@ -487,28 +535,55 @@
                             <div class="flex items-center gap-3">
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-xs text-slate-400">Secs:</span>
-                                    <input type="number" min="2" max="120" value="${slide.duration || 10}" onchange="app.updateSlideField('${slide.id}', 'duration', parseInt(this.value))" class="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
+                                    <input type="number" min="2" max="120" value="${slide.duration || 10}" data-slide-duration="${slide.id}" class="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-xs text-slate-400">Fit:</span>
-                                    <select onchange="app.updateSlideField('${slide.id}', 'fit', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
+                                    <select data-slide-fit="${slide.id}" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
                                         <option value="contain" ${slide.fit === 'contain' ? 'selected' : ''}>Contain</option>
                                         <option value="cover" ${slide.fit === 'cover' ? 'selected' : ''}>Cover</option>
                                     </select>
                                 </div>
-                                <button onclick="app.deleteSlide('${slide.id}')" class="text-slate-500 hover:text-red-400 p-1.5 transition">
+                                <button type="button" data-slide-delete="${slide.id}" class="text-slate-500 hover:text-red-400 p-1.5 transition cursor-pointer">
                                     🗑️
                                 </button>
                             </div>
                         </div>
                         ${slide.type === 'text' ? `
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 pt-3 border-t border-slate-800/60">
-                                <input type="text" value="${slide.title || ''}" placeholder="Slide Title" oninput="app.updateSlideTextContent('${slide.id}', 'title', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
-                                <input type="text" value="${slide.content || ''}" placeholder="Slide Content/Announcement" oninput="app.updateSlideTextContent('${slide.id}', 'content', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+                                <input type="text" value="${slide.title || ''}" placeholder="Slide Title" data-slide-title="${slide.id}" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+                                <input type="text" value="${slide.content || ''}" placeholder="Slide Content/Announcement" data-slide-content="${slide.id}" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
                             </div>
                         ` : ''}
                     </div>
                 `).join('');
+
+                // Attach dynamic listeners for slide items
+                list.querySelectorAll('[data-slide-duration]').forEach(input => {
+                    input.addEventListener('change', (e) => {
+                        this.updateSlideField(e.target.getAttribute('data-slide-duration'), 'duration', parseInt(e.target.value) || 10);
+                    });
+                });
+                list.querySelectorAll('[data-slide-fit]').forEach(select => {
+                    select.addEventListener('change', (e) => {
+                        this.updateSlideField(e.target.getAttribute('data-slide-fit'), 'fit', e.target.value);
+                    });
+                });
+                list.querySelectorAll('[data-slide-delete]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.deleteSlide(e.currentTarget.getAttribute('data-slide-delete'));
+                    });
+                });
+                list.querySelectorAll('[data-slide-title]').forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        this.updateSlideTextContent(e.target.getAttribute('data-slide-title'), 'title', e.target.value);
+                    });
+                });
+                list.querySelectorAll('[data-slide-content]').forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        this.updateSlideTextContent(e.target.getAttribute('data-slide-content'), 'content', e.target.value);
+                    });
+                });
             }
 
             exportJSON() {
@@ -547,8 +622,10 @@
                     return;
                 }
                 this.isTVMode = true;
-                document.getElementById('admin-view').classList.add('hidden');
-                document.getElementById('tv-display').classList.remove('hidden');
+                const adminView = document.getElementById('admin-view');
+                const tvDisplay = document.getElementById('tv-display');
+                if (adminView) adminView.classList.add('hidden');
+                if (tvDisplay) tvDisplay.classList.remove('hidden');
                 
                 try { document.documentElement.requestFullscreen(); } catch(e) {}
 
@@ -559,8 +636,10 @@
             exitTVMode() {
                 this.isTVMode = false;
                 clearTimeout(this.slideTimer);
-                document.getElementById('tv-display').classList.add('hidden');
-                document.getElementById('admin-view').classList.remove('hidden');
+                const adminView = document.getElementById('admin-view');
+                const tvDisplay = document.getElementById('tv-display');
+                if (tvDisplay) tvDisplay.classList.add('hidden');
+                if (adminView) adminView.classList.remove('hidden');
                 try { if (document.fullscreenElement) document.exitFullscreen(); } catch(e) {}
             }
 
@@ -570,10 +649,10 @@
                 const tickerBar = document.getElementById('tv-ticker-bar');
                 const tickerContent = document.getElementById('tv-ticker-content');
                 if (this.state.ticker.enabled && this.state.ticker.text) {
-                    tickerBar.classList.remove('hidden');
-                    tickerContent.innerText = this.state.ticker.text;
+                    if (tickerBar) tickerBar.classList.remove('hidden');
+                    if (tickerContent) tickerContent.innerText = this.state.ticker.text;
                 } else {
-                    tickerBar.classList.add('hidden');
+                    if (tickerBar) tickerBar.classList.add('hidden');
                 }
 
                 if (this.currentSlideIndex >= this.state.slides.length) {
@@ -582,6 +661,7 @@
 
                 const slide = this.state.slides[this.currentSlideIndex];
                 const stage = document.getElementById('tv-stage');
+                if (!stage) return;
                 
                 if (!slide) {
                     stage.innerHTML = `<div class="text-white text-2xl">No slides available</div>`;
@@ -655,7 +735,10 @@
             }
         }
 
-        const app = new RollingSignageApp();
+        // Initialize application once DOM is fully ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new RollingSignageApp();
+        });
     </script>
 </body>
 </html>
