@@ -61,10 +61,10 @@
                 <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
                     Rolling Signage Studio
                     <span id="sync-status" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Connecting Cloud...
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Connecting...
                     </span>
                 </h1>
-                <p class="text-xs text-slate-400">Multi-device real-time digital display system</p>
+                <p class="text-xs text-slate-400">Multi-device digital display system</p>
             </div>
         </div>
 
@@ -235,13 +235,40 @@
 
         let db = null;
         let docRef = null;
+        let useCloud = false;
 
         window.addEventListener('DOMContentLoaded', async () => {
+            loadLocalState();
             renderSlideList();
             if (currentSlideId) selectSlide(currentSlideId);
             initDropzone();
             initFirebaseSync();
         });
+
+        function loadLocalState() {
+            try {
+                const saved = localStorage.getItem('rolling_signage_state');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.slides) {
+                        appState = parsed;
+                    }
+                }
+            } catch (e) {
+                console.error("Error loading local storage:", e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('rolling_signage_state', JSON.stringify(appState));
+            } catch (e) {
+                console.error("Error saving local storage:", e);
+            }
+            if (useCloud) {
+                saveToCloud();
+            }
+        }
 
         async function initFirebaseSync() {
             const statusEl = document.getElementById('sync-status');
@@ -250,7 +277,7 @@
                 const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
                 
                 if (!firebaseConfig.projectId) {
-                    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Local Offline Mode`;
+                    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Local Storage Mode`;
                     statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
                     return;
                 }
@@ -265,8 +292,8 @@
                     await signInAnonymously(auth);
                 }
 
-                // FIXED PATH: Ensure an even number of segments (artifacts -> signage_app -> config -> settings)
                 docRef = doc(db, 'artifacts', 'signage_app', 'config', 'settings');
+                useCloud = true;
 
                 onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
@@ -285,25 +312,31 @@
                         saveToCloud();
                     }
                 }, (error) => {
-                    console.error("Cloud sync error:", error);
-                    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Sync Error`;
-                    statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium flex items-center gap-1.5";
+                    console.warn("Cloud sync warning (falling back to local storage):", error.message);
+                    useCloud = false;
+                    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Standalone Mode`;
+                    statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
                 });
 
             } catch (err) {
-                console.error("Firebase init failed:", err);
-                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Standalone Mode`;
+                console.warn("Firebase initialization skipped:", err.message);
+                useCloud = false;
+                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Local Storage Mode`;
                 statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
             }
         }
 
         async function saveToCloud() {
-            if (!db || !docRef) return;
+            if (!db || !docRef || !useCloud) return;
             try {
                 const { setDoc } = window.FB;
                 await setDoc(docRef, appState);
             } catch (e) {
-                console.error("Error saving state to cloud:", e);
+                console.warn("Cloud save skipped due to permissions/network:", e.message);
+                useCloud = false;
+                const statusEl = document.getElementById('sync-status');
+                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Local Storage Mode`;
+                statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
             }
         }
 
@@ -352,7 +385,7 @@
                         transition: 'fade'
                     };
                     appState.slides.push(newSlide);
-                    saveToCloud();
+                    saveState();
                     renderSlideList();
                     selectSlide(newId);
                     showToast(`Added ${newSlide.title}`);
@@ -428,7 +461,7 @@
                 transition: 'fade'
             };
             appState.slides.push(newSlide);
-            saveToCloud();
+            saveState();
             selectSlide(newId);
             showToast('Slide added successfully');
         }
@@ -442,7 +475,7 @@
             if (currentSlideId === id) {
                 currentSlideId = appState.slides[0].id;
             }
-            saveToCloud();
+            saveState();
             renderSlideList();
             if (currentSlideId) selectSlide(currentSlideId);
             showToast('Slide deleted');
@@ -454,7 +487,7 @@
             const temp = appState.slides[index];
             appState.slides[index] = appState.slides[newIndex];
             appState.slides[newIndex] = temp;
-            saveToCloud();
+            saveState();
             renderSlideList();
         }
 
@@ -581,7 +614,7 @@
                 delete slide.subtitle;
                 delete slide.fit;
             }
-            saveToCloud();
+            saveState();
             renderSlideList();
             renderEditor();
         }
@@ -590,7 +623,7 @@
             const slide = appState.slides.find(s => s.id === currentSlideId);
             if (!slide) return;
             slide[field] = value;
-            saveToCloud();
+            saveState();
             renderSlideList();
         }
 
@@ -602,7 +635,7 @@
                 const slide = appState.slides.find(s => s.id === slideId);
                 if (slide) {
                     slide.url = e.target.result;
-                    saveToCloud();
+                    saveState();
                     renderEditor();
                     showToast('Media file loaded successfully');
                 }
@@ -733,7 +766,7 @@
                 enabled: document.getElementById('ticker-enabled').checked,
                 message: document.getElementById('ticker-message').value
             };
-            saveToCloud();
+            saveState();
             closeTickerModal();
             showToast('Ticker settings updated');
         }
@@ -758,7 +791,7 @@
                     const parsed = JSON.parse(e.target.result);
                     if (parsed && parsed.slides) {
                         appState = parsed;
-                        saveToCloud();
+                        saveState();
                         renderSlideList();
                         if (appState.slides.length > 0) selectSlide(appState.slides[0].id);
                         showToast('Configuration imported successfully');
