@@ -24,10 +24,6 @@
         }
         .effect-fade-in { opacity: 0; }
         .effect-fade-active { opacity: 1; }
-        .effect-zoom-in { opacity: 0; transform: scale(0.92); }
-        .effect-zoom-active { opacity: 1; transform: scale(1); }
-        .effect-slide-in { opacity: 0; transform: translateX(50px); }
-        .effect-slide-active { opacity: 1; transform: translateX(0); }
 
         .app-container { min-height: 100%; display: flex; flex-direction: column; }
         .admin-view { flex: 1; display: flex; flex-direction: column; max-width: 80rem; margin: 0 auto; width: 100%; padding: 1.5rem; }
@@ -57,6 +53,10 @@
         #tv-ticker-bar { background-color: rgba(17, 24, 39, 0.9); color: #fde047; padding: 0.75rem 1rem; border-top: 1px solid #1f2937; font-size: 1.25rem; font-weight: 600; overflow: hidden; white-space: nowrap; }
         #tv-controls { position: absolute; top: 1rem; right: 1rem; background-color: rgba(17, 24, 39, 0.9); border: 1px solid rgba(55, 65, 81, 0.5); border-radius: 0.75rem; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 1rem; transition: opacity 0.3s; opacity: 0; z-index: 50; }
         #tv-display:hover #tv-controls { opacity: 1; }
+
+        /* Modal for Text Slide Editing */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-box { background: #111827; border: 1px solid #1f2937; border-radius: 1rem; width: 100%; max-width: 32rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
     </style>
 </head>
 <body>
@@ -81,7 +81,7 @@
                         <div style="width: 3rem; height: 3rem; border-radius: 9999px; background-color: #1f2937; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #60a5fa;">📁</div>
                         <div>
                             <p style="font-weight: 500; color: #e5e7eb;">Drag & drop image or video files here</p>
-                            <p style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem;">Supports PNG, JPG, GIF, MP4, WebM</p>
+                            <p style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem;">Supports PNG, JPG, GIF, MP4, WebM (Auto-synced across browsers)</p>
                         </div>
                         <input type="file" id="file-input" multiple accept="image/*,video/*" style="display: none;">
                     </div>
@@ -91,10 +91,6 @@
                         <div style="display: flex; gap: 0.5rem;">
                             <button id="btn-add-text" class="btn-secondary">+ Add Text Slide</button>
                             <button id="btn-export" class="btn-secondary">Export JSON</button>
-                            <label class="btn-secondary" style="cursor: pointer;">
-                                Import JSON
-                                <input type="file" id="import-json" accept=".json" style="display: none;">
-                            </label>
                         </div>
                     </div>
 
@@ -131,8 +127,6 @@
                                 <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Transition Effect</label>
                                 <select id="global-transition" class="input-dark">
                                     <option value="fade">Fade</option>
-                                    <option value="zoom">Zoom</option>
-                                    <option value="slide">Slide</option>
                                     <option value="none">None (Instant)</option>
                                 </select>
                             </div>
@@ -151,6 +145,25 @@
             <div id="tv-controls">
                 <span style="font-size: 0.75rem; color: #34d399; font-family: monospace;">● TV DISPLAY ACTIVE</span>
                 <button id="btn-exit-tv" style="background-color: #dc2626; color: white; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 500; pointer-events: auto; cursor: pointer;">Exit Display Mode</button>
+            </div>
+        </div>
+
+        <!-- EDIT TEXT MODAL -->
+        <div id="edit-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <h3 style="font-size: 1.125rem; font-weight: 600; color: white;">Edit Text Slide</h3>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Slide Heading</label>
+                    <input type="text" id="modal-title" class="input-dark">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Slide Message / Content</label>
+                    <textarea id="modal-content" rows="4" class="input-dark"></textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button id="modal-cancel" class="btn-secondary">Cancel</button>
+                    <button id="modal-save" class="btn-primary">Save Changes</button>
+                </div>
             </div>
         </div>
     </div>
@@ -177,6 +190,7 @@
                 this.slideTimer = null;
                 this.isTVMode = false;
                 this.syncTimeout = null;
+                this.editingSlideId = null;
 
                 this.loadLocalCache();
                 this.initListeners();
@@ -192,10 +206,7 @@
                         if (parsed.ticker) this.state.ticker = parsed.ticker;
                         if (parsed.settings) this.state.settings = parsed.settings;
                         if (Array.isArray(parsed.slides)) {
-                            this.state.slides = parsed.slides.map(s => ({
-                                ...s,
-                                url: s.url || '' // Keep track of existing object URLs if still active in memory
-                            }));
+                            this.state.slides = parsed.slides;
                         }
                     }
                 } catch (e) {
@@ -205,21 +216,7 @@
 
             saveLocalCache() {
                 try {
-                    const payload = {
-                        ticker: this.state.ticker,
-                        settings: this.state.settings,
-                        slides: this.state.slides.map(s => ({
-                            id: s.id,
-                            type: s.type,
-                            name: s.name,
-                            title: s.title,
-                            content: s.content,
-                            fit: s.fit || 'contain',
-                            duration: s.duration || 10,
-                            url: s.type === 'text' ? '' : s.url
-                        }))
-                    };
-                    localStorage.setItem('rolling_signage_state', JSON.stringify(payload));
+                    localStorage.setItem('rolling_signage_state', JSON.stringify(this.state));
                 } catch (e) {
                     console.error("Local cache save error:", e);
                 }
@@ -229,8 +226,8 @@
                 await this.pullFromCloud();
                 this.renderAdmin();
                 
-                // Periodic cloud sync push every 10 seconds
-                setInterval(() => this.pushToCloud(), 10000);
+                // Periodic cloud sync push every 15 seconds
+                setInterval(() => this.pushToCloud(), 15000);
             }
 
             async pullFromCloud() {
@@ -242,19 +239,13 @@
                     });
                     if (response.ok) {
                         const json = await response.json();
-                        if (json && json.record && Array.isArray(json.record.slides) && json.record.slides.length > 0) {
+                        if (json && json.record && Array.isArray(json.record.slides)) {
                             const cloudData = json.record;
                             if (cloudData.ticker) this.state.ticker = cloudData.ticker;
                             if (cloudData.settings) this.state.settings = cloudData.settings;
-                            
-                            // Merge cloud slides, preserving local URLs if they match
-                            this.state.slides = cloudData.slides.map(cs => {
-                                const existing = this.state.slides.find(s => s.id === cs.id);
-                                return {
-                                    ...cs,
-                                    url: (existing && existing.url) ? existing.url : (cs.url || '')
-                                };
-                            });
+                            if (cloudData.slides.length > 0) {
+                                this.state.slides = cloudData.slides;
+                            }
                             this.saveLocalCache();
                         }
                         if (statusEl) {
@@ -274,28 +265,13 @@
             async pushToCloud() {
                 const statusEl = document.getElementById('sync-status');
                 try {
-                    const payload = {
-                        ticker: this.state.ticker,
-                        settings: this.state.settings,
-                        slides: this.state.slides.map(s => ({
-                            id: s.id,
-                            type: s.type,
-                            name: s.name,
-                            title: s.title,
-                            content: s.content,
-                            fit: s.fit || 'contain',
-                            duration: s.duration || 10,
-                            url: s.type === 'text' ? '' : s.url
-                        }))
-                    };
-
                     const response = await fetch(this.cloudBinUrl, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-Master-Key': this.cloudApiKey
                         },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify(this.state)
                     });
 
                     if (response.ok && statusEl) {
@@ -319,20 +295,24 @@
 
             handleFiles(files) {
                 Array.from(files).forEach(file => {
-                    const objectUrl = URL.createObjectURL(file);
-                    const isVideo = file.type.startsWith('video/');
-                    
-                    this.state.slides.push({
-                        id: 'slide_' + Math.random().toString(36).substring(2),
-                        type: isVideo ? 'video' : 'image',
-                        url: objectUrl,
-                        name: file.name,
-                        fit: 'contain',
-                        duration: this.state.settings.defaultDuration
-                    });
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64Data = e.target.result;
+                        const isVideo = file.type.startsWith('video/');
+                        
+                        this.state.slides.push({
+                            id: 'slide_' + Math.random().toString(36).substring(2),
+                            type: isVideo ? 'video' : 'image',
+                            url: base64Data,
+                            name: file.name,
+                            fit: 'contain',
+                            duration: this.state.settings.defaultDuration
+                        });
+                        this.renderAdmin();
+                        this.triggerCloudSync();
+                    };
+                    reader.readAsDataURL(file);
                 });
-                this.renderAdmin();
-                this.triggerCloudSync();
             }
 
             addTextSlide() {
@@ -362,6 +342,32 @@
                 }
             }
 
+            openEditModal(id) {
+                const slide = this.state.slides.find(s => s.id === id);
+                if (!slide || slide.type !== 'text') return;
+                this.editingSlideId = id;
+                document.getElementById('modal-title').value = slide.title || '';
+                document.getElementById('modal-content').value = slide.content || '';
+                document.getElementById('edit-modal').classList.remove('hidden');
+            }
+
+            closeEditModal() {
+                this.editingSlideId = null;
+                document.getElementById('edit-modal').classList.add('hidden');
+            }
+
+            saveEditModal() {
+                if (!this.editingSlideId) return;
+                const slide = this.state.slides.find(s => s.id === this.editingSlideId);
+                if (slide) {
+                    slide.title = document.getElementById('modal-title').value;
+                    slide.content = document.getElementById('modal-content').value;
+                    this.renderAdmin();
+                    this.triggerCloudSync();
+                }
+                this.closeEditModal();
+            }
+
             initListeners() {
                 const dropzone = document.getElementById('dropzone');
                 const fileInput = document.getElementById('file-input');
@@ -384,7 +390,9 @@
                 document.getElementById('btn-exit-tv')?.addEventListener('click', () => this.exitTVMode());
                 document.getElementById('btn-add-text')?.addEventListener('click', () => this.addTextSlide());
                 document.getElementById('btn-export')?.addEventListener('click', () => this.exportJSON());
-                document.getElementById('import-json')?.addEventListener('change', (e) => this.importJSON(e));
+
+                document.getElementById('modal-save')?.addEventListener('click', () => this.saveEditModal());
+                document.getElementById('modal-cancel')?.addEventListener('click', () => this.closeEditModal());
 
                 document.getElementById('ticker-text')?.addEventListener('input', (e) => {
                     this.state.ticker.text = e.target.value;
@@ -439,10 +447,11 @@
                             </div>
                             <div style="min-width: 0; flex: 1;">
                                 <p style="font-size: 0.875rem; font-weight: 500; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${slide.name || slide.title || 'Slide ' + (idx + 1)}</p>
-                                <p style="font-size: 0.75rem; color: #9ca3af; text-transform: capitalize;">${slide.type} slide ${!slide.url && slide.type !== 'text' ? '(Needs file on this device)' : ''}</p>
+                                <p style="font-size: 0.75rem; color: #9ca3af; text-transform: capitalize;">${slide.type} slide</p>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.75rem; width: auto; justify-content: flex-end;">
+                            ${slide.type === 'text' ? `<button onclick="app.openEditModal('${slide.id}')" class="btn-secondary" style="padding: 0.25rem 0.5rem;">Edit Text</button>` : ''}
                             <div style="display: flex; align-items: center; gap: 0.375rem;">
                                 <span style="font-size: 0.75rem; color: #9ca3af;">Secs:</span>
                                 <input type="number" min="2" max="120" value="${slide.duration || 10}" onchange="app.updateSlideField('${slide.id}', 'duration', parseInt(this.value))" style="width: 4rem; background-color: #030712; border: 1px solid #1f2937; border-radius: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #e5e7eb;">
@@ -461,22 +470,13 @@
             }
 
             exportJSON() {
-                const exportData = {
-                    ticker: this.state.ticker,
-                    settings: this.state.settings,
-                    slides: this.state.slides.map(s => ({ type: s.type, name: s.name, title: s.title, content: s.content, fit: s.fit, duration: s.duration }))
-                };
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.state, null, 2));
                 const a = document.createElement('a');
                 a.href = dataStr;
                 a.download = "signage_playlist.json";
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-            }
-
-            importJSON(event) {
-                alert("To add media files, please drag and drop them directly onto the dropzone.");
             }
 
             launchTVMode() {
@@ -524,17 +524,9 @@
                 const fitStyle = slide.fit === 'cover' ? 'width: 100%; height: 100%; object-fit: cover;' : 'max-width: 100%; max-height: 100%; object-fit: contain;';
 
                 if (slide.type === 'image') {
-                    if (slide.url) {
-                        contentHtml = `<img src="${slide.url}" style="${fitStyle}">`;
-                    } else {
-                        contentHtml = `<div style="color: #9ca3af; text-align: center;"><p style="font-size: 1.5rem;">Missing local file: ${slide.name}</p><p style="font-size: 1rem; margin-top: 0.5rem;">Please drop this image onto the manager on this device.</p></div>`;
-                    }
+                    contentHtml = `<img src="${slide.url}" style="${fitStyle}">`;
                 } else if (slide.type === 'video') {
-                    if (slide.url) {
-                        contentHtml = `<video src="${slide.url}" style="${fitStyle}" autoplay muted playsinline></video>`;
-                    } else {
-                        contentHtml = `<div style="color: #9ca3af; text-align: center;"><p style="font-size: 1.5rem;">Missing local video: ${slide.name}</p></div>`;
-                    }
+                    contentHtml = `<video src="${slide.url}" style="${fitStyle}" autoplay muted playsinline></video>`;
                 } else if (slide.type === 'text') {
                     contentHtml = `
                         <div style="max-width: 56rem; padding: 3rem; text-align: center;">
