@@ -80,34 +80,13 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <span id="sync-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        Local Mode (Ready)
+                        Cloud Sync Active (Ready)
                     </span>
                     <button onclick="app.launchTVMode()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
                         <span>▶ Launch TV Display</span>
                     </button>
                 </div>
             </header>
-
-            <!-- Cloud Sync Settings Bar -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 mt-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <span class="text-xl">☁️</span>
-                    <div>
-                        <h3 class="text-sm font-semibold text-slate-200">JSONBin.io Cloud Sync</h3>
-                        <p class="text-xs text-slate-400">Hardcoded credentials active. Syncing automatically across devices.</p>
-                    </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    <input type="text" id="cloud-bin-url" placeholder="Bin URL" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 w-full sm:w-72 focus:outline-none focus:border-brand-500">
-                    <input type="password" id="cloud-api-key" placeholder="X-Master-Key" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 w-full sm:w-48 focus:outline-none focus:border-brand-500">
-                    <button onclick="app.saveCloudCredentials()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-xl border border-slate-700 transition">
-                        Connect & Save
-                    </button>
-                    <button onclick="app.pullFromCloud()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition">
-                        Sync Now 🔄
-                    </button>
-                </div>
-            </div>
 
             <!-- Main Dashboard Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 flex-1">
@@ -192,7 +171,7 @@
         </div>
 
         <!-- TV PRESENTATION VIEW (Fullscreen Player) -->
-        <div id="tv-display" class="fixed inset-0 bg-black z-50 flex flex-col hidden select-none">
+        <div id="tv-display" class="fixed inset-0 z-50 flex flex-col hidden select-none" style="background-color: #000000 !important;">
             <!-- Fullscreen Media Stage (Pure Black Background) -->
             <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center" style="background-color: #000000 !important;">
                 <!-- Slides render here -->
@@ -231,11 +210,8 @@
                 };
                 
                 // Hardcoded JSONBin Credentials
-                const HARDCODED_BIN_URL = "https://api.jsonbin.io/v3/b/6abb9d43ac6210605a018507";
-                const HARDCODED_API_KEY = "$2a$10$Lw57fEK4TwqdOnZxAFHesuTWoC88So5ffCXBB55ccpto9Kl/Eksmu";
-
-                this.cloudBinUrl = HARDCODED_BIN_URL || localStorage.getItem('signage_bin_url') || '';
-                this.cloudApiKey = HARDCODED_API_KEY || localStorage.getItem('signage_api_key') || '';
+                this.cloudBinUrl = "https://api.jsonbin.io/v3/b/6abb9d43ac6210605a018507";
+                this.cloudApiKey = "$2a$10$Lw57fEK4TwqdOnZxAFHesuTWoC88So5ffCXBB55ccpto9Kl/Eksmu";
                 
                 this.currentSlideIndex = 0;
                 this.slideTimer = null;
@@ -246,29 +222,8 @@
                 this.initListeners();
 
                 if (this.cloudBinUrl) {
-                    document.getElementById('cloud-bin-url').value = this.cloudBinUrl;
-                    if (this.cloudApiKey) {
-                        document.getElementById('cloud-api-key').value = this.cloudApiKey;
-                    }
                     this.pullFromCloud(true);
                     this.pollInterval = setInterval(() => this.pullFromCloud(true), 10000);
-                }
-            }
-
-            saveCloudCredentials() {
-                this.cloudBinUrl = document.getElementById('cloud-bin-url').value.trim();
-                this.cloudApiKey = document.getElementById('cloud-api-key').value.trim();
-                localStorage.setItem('signage_bin_url', this.cloudBinUrl);
-                localStorage.setItem('signage_api_key', this.cloudApiKey);
-                
-                if (this.cloudBinUrl) {
-                    alert("Cloud credentials saved! Pulling latest slides...");
-                    this.pullFromCloud();
-                    if (!this.pollInterval) {
-                        this.pollInterval = setInterval(() => this.pullFromCloud(true), 10000);
-                    }
-                } else {
-                    alert("Cloud URL cleared. Running in local storage mode.");
                 }
             }
 
@@ -284,8 +239,11 @@
                         body: JSON.stringify(this.state)
                     });
                     if (response.ok) {
-                        document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                        document.getElementById('sync-status').innerText = "Cloud Sync Active (Synced)";
+                        const statusEl = document.getElementById('sync-status');
+                        if (statusEl) {
+                            statusEl.className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                            statusEl.innerText = "Cloud Sync Active (Synced)";
+                        }
                     }
                 } catch (e) {
                     console.warn("Cloud push deferred:", e);
@@ -306,8 +264,11 @@
                             this.state = remoteState;
                             this.renderAdmin();
                             if (this.isTVMode) this.renderTVFrame();
-                            document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                            document.getElementById('sync-status').innerText = "Cloud Sync Active";
+                            const statusEl = document.getElementById('sync-status');
+                            if (statusEl) {
+                                statusEl.className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                                statusEl.innerText = "Cloud Sync Active";
+                            }
                         }
                     }
                 } catch (e) {
@@ -318,11 +279,8 @@
             saveLocal() {
                 try {
                     localStorage.setItem('rolling_signage_state', JSON.stringify(this.state));
-                    document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20";
-                    document.getElementById('sync-status').innerText = "Local Storage Mode (Saved)";
                 } catch (e) {
-                    console.error("Local storage error (quota exceeded?):", e);
-                    alert("Storage limit reached! Try using smaller image files or fewer slides.");
+                    console.error("Local storage error:", e);
                 }
             }
 
@@ -427,25 +385,44 @@
             }
 
             updateTickerSettings() {
-                this.state.ticker.text = document.getElementById('ticker-text').value;
-                this.state.ticker.enabled = document.getElementById('ticker-enabled').checked;
-                this.saveState();
+                const textEl = document.getElementById('ticker-text');
+                const enabledEl = document.getElementById('ticker-enabled');
+                if (textEl && enabledEl) {
+                    this.state.ticker.text = textEl.value;
+                    this.state.ticker.enabled = enabledEl.checked;
+                    this.saveState();
+                }
             }
 
             updateGlobalSettings() {
-                this.state.settings.defaultDuration = parseInt(document.getElementById('global-duration').value) || 10;
-                this.state.settings.transition = document.getElementById('global-transition').value;
-                this.saveState();
+                const durationEl = document.getElementById('global-duration');
+                const transitionEl = document.getElementById('global-transition');
+                if (durationEl && transitionEl) {
+                    this.state.settings.defaultDuration = parseInt(durationEl.value) || 10;
+                    this.state.settings.transition = transitionEl.value;
+                    this.saveState();
+                }
             }
 
             renderAdmin() {
-                document.getElementById('slide-count').innerText = this.state.slides.length;
-                document.getElementById('ticker-text').value = this.state.ticker.text;
-                document.getElementById('ticker-enabled').checked = this.state.ticker.enabled;
-                document.getElementById('global-duration').value = this.state.settings.defaultDuration;
-                document.getElementById('global-transition').value = this.state.settings.transition || 'fade';
+                const countEl = document.getElementById('slide-count');
+                if (countEl) countEl.innerText = this.state.slides.length;
+                
+                const tickerTextEl = document.getElementById('ticker-text');
+                if (tickerTextEl) tickerTextEl.value = this.state.ticker.text;
+
+                const tickerEnabledEl = document.getElementById('ticker-enabled');
+                if (tickerEnabledEl) tickerEnabledEl.checked = this.state.ticker.enabled;
+
+                const globalDurationEl = document.getElementById('global-duration');
+                if (globalDurationEl) globalDurationEl.value = this.state.settings.defaultDuration;
+
+                const globalTransitionEl = document.getElementById('global-transition');
+                if (globalTransitionEl) globalTransitionEl.value = this.state.settings.transition || 'fade';
 
                 const list = document.getElementById('slides-list');
+                if (!list) return;
+
                 if (this.state.slides.length === 0) {
                     list.innerHTML = `<div class="text-center py-12 text-slate-500 border border-slate-800 rounded-xl bg-slate-900/30">No slides added yet. Drag & drop files above or add a text slide to get started!</div>`;
                     return;
