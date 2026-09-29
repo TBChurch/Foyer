@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling Signage TV Web App</title>
+    <title>Rolling Signage TV Web App - Cloud Sync & Transitions</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -17,16 +17,7 @@
             }
         }
     </script>
-    <!-- Firebase SDKs for Real-time Cloud Sync -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        
-        // Expose Firebase tools globally for our app script
-        window.firebaseModules = { initializeApp, getFirestore, doc, getDoc, setDoc, onSnapshot };
-    </script>
     <style>
-        /* TV-safe fallback styles & animations */
         @keyframes ticker {
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
@@ -39,9 +30,37 @@
         .animate-ticker:hover {
             animation-play-state: paused;
         }
-        /* Hide scrollbars for clean TV presentation */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Slide Transition Effects */
+        .slide-transition {
+            transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+        }
+        .effect-fade-in {
+            opacity: 0;
+            transform: scale(1);
+        }
+        .effect-fade-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .effect-zoom-in {
+            opacity: 0;
+            transform: scale(0.92);
+        }
+        .effect-zoom-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .effect-slide-in {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        .effect-slide-active {
+            opacity: 1;
+            transform: translateX(0);
+        }
     </style>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden">
@@ -57,17 +76,38 @@
                     <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
                         📺 Rolling Signage Manager
                     </h1>
-                    <p class="text-sm text-slate-400 mt-1">Manage slides, schedule content, and stream to your TV in real-time.</p>
+                    <p class="text-sm text-slate-400 mt-1">Manage slides, transitions, cloud sync, and stream to your TV.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <span id="sync-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        Connecting to Cloud...
+                    <span id="sync-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        Local Mode (Configure Cloud Below)
                     </span>
                     <button onclick="app.launchTVMode()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
                         <span>▶ Launch TV Display</span>
                     </button>
                 </div>
             </header>
+
+            <!-- Cloud Sync Settings Bar -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 mt-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <span class="text-xl">☁️</span>
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-200">JSONBin.io Cloud Sync</h3>
+                        <p class="text-xs text-slate-400">Paste your free bin URL & Master Key to sync instantly across devices.</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <input type="text" id="cloud-bin-url" placeholder="Bin URL (https://api.jsonbin.io/v3/b/...)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 w-full sm:w-72 focus:outline-none focus:border-brand-500">
+                    <input type="password" id="cloud-api-key" placeholder="X-Master-Key (optional)" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 w-full sm:w-48 focus:outline-none focus:border-brand-500">
+                    <button onclick="app.saveCloudCredentials()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-xl border border-slate-700 transition">
+                        Connect & Save
+                    </button>
+                    <button onclick="app.pullFromCloud()" class="bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium px-3 py-1.5 rounded-xl transition">
+                        Sync Now 🔄
+                    </button>
+                </div>
+            </div>
 
             <!-- Main Dashboard Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 flex-1">
@@ -82,7 +122,7 @@
                         </div>
                         <div>
                             <p class="font-medium text-slate-200">Drag & drop image or video files here</p>
-                            <p class="text-xs text-slate-400 mt-0.5">Supports PNG, JPG, GIF, MP4, WebM (Auto-saved to cloud)</p>
+                            <p class="text-xs text-slate-400 mt-0.5">Supports PNG, JPG, GIF, MP4, WebM</p>
                         </div>
                         <input type="file" id="file-input" multiple accept="image/*,video/*" class="hidden">
                     </div>
@@ -106,7 +146,6 @@
 
                     <!-- Slides Container -->
                     <div id="slides-list" class="space-y-3 flex-1 overflow-y-auto max-h-[500px] pr-2">
-                        <!-- Dynamically populated slides -->
                         <div class="text-center py-12 text-slate-500 border border-slate-800 rounded-xl bg-slate-900/30">
                             No slides added yet. Drag & drop files above or add a text slide to get started!
                         </div>
@@ -136,6 +175,15 @@
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Default Slide Duration (Seconds)</label>
                                 <input type="number" id="global-duration" min="2" max="120" value="10" onchange="app.updateGlobalSettings()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
                             </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Transition Effect</label>
+                                <select id="global-transition" onchange="app.updateGlobalSettings()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
+                                    <option value="fade">Fade</option>
+                                    <option value="zoom">Zoom</option>
+                                    <option value="slide">Slide</option>
+                                    <option value="none">None (Instant)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -155,9 +203,9 @@
                 <div id="tv-ticker-content" class="animate-ticker"></div>
             </div>
 
-            <!-- Floating Exit / Control Bar (Appears on mouse move or TV remote click) -->
+            <!-- Floating Exit / Control Bar -->
             <div id="tv-controls" class="absolute top-4 right-4 bg-slate-900/90 border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-4 transition-opacity duration-300 opacity-0 hover:opacity-100 z-50">
-                <span id="tv-status-indicator" class="text-xs text-emerald-400 font-mono">● LIVE SYNC</span>
+                <span id="tv-status-indicator" class="text-xs text-emerald-400 font-mono">● TV SYNC ACTIVE</span>
                 <button onclick="app.exitTVMode()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
                     Exit Display Mode
                 </button>
@@ -177,68 +225,91 @@
                         enabled: true
                     },
                     settings: {
-                        defaultDuration: 10
+                        defaultDuration: 10,
+                        transition: "fade"
                     }
                 };
+                this.cloudBinUrl = localStorage.getItem('signage_bin_url') || '';
+                this.cloudApiKey = localStorage.getItem('signage_api_key') || '';
                 this.currentSlideIndex = 0;
                 this.slideTimer = null;
                 this.isTVMode = false;
-                this.db = null;
-                this.isCloudSynced = false;
-                
-                this.initFirebase();
-                this.initListeners();
-            }
+                this.pollInterval = null;
 
-            async initFirebase() {
-                try {
-                    const { initializeApp, getFirestore, doc, onSnapshot } = window.firebaseModules;
-                    // Public demo firebase config for cloud sync
-                    const firebaseConfig = {
-                        apiKey: "AIzaSyD-demo-signage-key-placeholder",
-                        authDomain: "rolling-signage-default.firebaseapp.com",
-                        projectId: "rolling-signage-default",
-                        storageBucket: "rolling-signage-default.appspot.com",
-                        messagingSenderId: "1234567890",
-                        appId: "1:1234567890:web:abcdef"
-                    };
-                    // Fallback to local storage if offline or config fails
-                    const app = initializeApp(firebaseConfig);
-                    this.db = getFirestore(app);
-                    
-                    const docRef = doc(this.db, "artifacts", "signage_config");
-                    onSnapshot(docRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            if (data && data.slides) {
-                                this.state = data;
-                                this.renderAdmin();
-                                if (this.isTVMode) this.renderTVFrame();
-                                document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                                document.getElementById('sync-status').innerText = "Cloud Sync Active";
-                                this.isCloudSynced = true;
-                            }
-                        } else {
-                            this.saveToCloud(); // Initialize if empty
-                        }
-                    }, (err) => {
-                        console.warn("Cloud sync fallback to local storage:", err);
-                        this.loadLocal();
-                    });
-                } catch (e) {
-                    console.warn("Using local storage mode:", e);
-                    this.loadLocal();
+                this.loadLocal();
+                this.initListeners();
+
+                if (this.cloudBinUrl) {
+                    document.getElementById('cloud-bin-url').value = this.cloudBinUrl;
+                    document.getElementById('cloud-api-key').value = this.cloudApiKey;
+                    this.pullFromCloud(true);
+                    this.pollInterval = setInterval(() => this.pullFromCloud(true), 10000);
                 }
             }
 
-            async saveToCloud() {
+            saveCloudCredentials() {
+                this.cloudBinUrl = document.getElementById('cloud-bin-url').value.trim();
+                this.cloudApiKey = document.getElementById('cloud-api-key').value.trim();
+                localStorage.setItem('signage_bin_url', this.cloudBinUrl);
+                localStorage.setItem('signage_api_key', this.cloudApiKey);
+                
+                if (this.cloudBinUrl) {
+                    alert("Cloud credentials saved! Pulling latest slides...");
+                    this.pullFromCloud();
+                    if (!this.pollInterval) {
+                        this.pollInterval = setInterval(() => this.pullFromCloud(true), 10000);
+                    }
+                } else {
+                    alert("Cloud URL cleared. Running in local storage mode.");
+                }
+            }
+
+            async pushToCloud() {
+                if (!this.cloudBinUrl) {
+                    this.saveLocal();
+                    return;
+                }
                 try {
-                    if (this.db) {
-                        const { doc, setDoc } = window.firebaseModules;
-                        await setDoc(doc(this.db, "artifacts", "signage_config"), this.state);
+                    const headers = { "Content-Type": "application/json" };
+                    if (this.cloudApiKey) headers["X-Master-Key"] = this.cloudApiKey;
+
+                    const response = await fetch(this.cloudBinUrl, {
+                        method: "PUT",
+                        headers: headers,
+                        body: JSON.stringify(this.state)
+                    });
+                    if (response.ok) {
+                        document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                        document.getElementById('sync-status').innerText = "Cloud Sync Active (Synced)";
+                    } else {
+                        throw new Error("Cloud save failed");
                     }
                 } catch (e) {
+                    console.warn("Cloud push error, saving locally:", e);
                     this.saveLocal();
+                }
+            }
+
+            async pullFromCloud(silent = false) {
+                if (!this.cloudBinUrl) return;
+                try {
+                    const headers = {};
+                    if (this.cloudApiKey) headers["X-Master-Key"] = this.cloudApiKey;
+
+                    const response = await fetch(this.cloudBinUrl, { method: "GET", headers: headers });
+                    if (response.ok) {
+                        const data = await response.json();
+                        const remoteState = data.record || data;
+                        if (remoteState && remoteState.slides) {
+                            this.state = remoteState;
+                            this.renderAdmin();
+                            if (this.isTVMode) this.renderTVFrame();
+                            document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                            document.getElementById('sync-status').innerText = "Cloud Sync Active";
+                        }
+                    }
+                } catch (e) {
+                    if (!silent) console.warn("Cloud pull error:", e);
                 }
             }
 
@@ -258,11 +329,10 @@
 
             saveState() {
                 this.saveLocal();
-                this.saveToCloud();
+                this.pushToCloud();
             }
 
             initListeners() {
-                // Drag and drop setup
                 const dropzone = document.getElementById('dropzone');
                 const fileInput = document.getElementById('file-input');
 
@@ -283,11 +353,8 @@
                     }
                 });
 
-                // TV remote / mouse activity listener for showing controls
                 let hideTimer;
-                const tvDisplay = document.getElementById('tv-display');
                 const tvControls = document.getElementById('tv-controls');
-                
                 const showControls = () => {
                     if (!this.isTVMode) return;
                     tvControls.style.opacity = '1';
@@ -307,7 +374,7 @@
                     const isVideo = file.type.startsWith('video/');
                     reader.onload = (e) => {
                         this.state.slides.push({
-                            id: 'slide_' + Math.random().toString(36.2),
+                            id: 'slide_' + Math.random().toString(36).substring(2),
                             type: isVideo ? 'video' : 'image',
                             url: e.target.result,
                             name: file.name,
@@ -323,7 +390,7 @@
 
             addTextSlide() {
                 this.state.slides.push({
-                    id: 'slide_' + Math.random().toString(36.2),
+                    id: 'slide_' + Math.random().toString(36).substring(2),
                     type: 'text',
                     title: 'Welcome!',
                     content: 'Add your announcements and custom text here.',
@@ -356,6 +423,7 @@
 
             updateGlobalSettings() {
                 this.state.settings.defaultDuration = parseInt(document.getElementById('global-duration').value) || 10;
+                this.state.settings.transition = document.getElementById('global-transition').value;
                 this.saveState();
             }
 
@@ -364,6 +432,7 @@
                 document.getElementById('ticker-text').value = this.state.ticker.text;
                 document.getElementById('ticker-enabled').checked = this.state.ticker.enabled;
                 document.getElementById('global-duration').value = this.state.settings.defaultDuration;
+                document.getElementById('global-transition').value = this.state.settings.transition || 'fade';
 
                 const list = document.getElementById('slides-list');
                 if (this.state.slides.length === 0) {
@@ -444,7 +513,6 @@
                 document.getElementById('admin-view').classList.add('hidden');
                 document.getElementById('tv-display').classList.remove('hidden');
                 
-                // Request fullscreen if supported
                 try { document.documentElement.requestFullscreen(); } catch(e) {}
 
                 this.currentSlideIndex = 0;
@@ -462,7 +530,6 @@
             renderTVFrame() {
                 if (!this.isTVMode) return;
                 
-                // Setup ticker
                 const tickerBar = document.getElementById('tv-ticker-bar');
                 const tickerContent = document.getElementById('tv-ticker-content');
                 if (this.state.ticker.enabled && this.state.ticker.text) {
@@ -500,9 +567,30 @@
                     `;
                 }
 
-                stage.innerHTML = contentHtml;
+                const effect = this.state.settings.transition || 'fade';
+                let startClass = 'effect-fade-in';
+                let activeClass = 'effect-fade-active';
+                if (effect === 'zoom') {
+                    startClass = 'effect-zoom-in';
+                    activeClass = 'effect-zoom-active';
+                } else if (effect === 'slide') {
+                    startClass = 'effect-slide-in';
+                    activeClass = 'effect-slide-active';
+                } else if (effect === 'none') {
+                    startClass = '';
+                    activeClass = '';
+                }
 
-                // Handle slide timing & transitions
+                stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass}">${contentHtml}</div>`;
+                
+                // Trigger transition animation
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const inner = stage.firstElementChild;
+                        if (inner) inner.className = `w-full h-full flex items-center justify-center slide-transition ${activeClass}`;
+                    });
+                });
+
                 const duration = (slide.duration || this.state.settings.defaultDuration) * 1000;
                 
                 if (slide.type === 'video') {
@@ -512,7 +600,6 @@
                             this.currentSlideIndex++;
                             this.renderTVFrame();
                         };
-                        // Fallback timer if video fails or is too long
                         this.slideTimer = setTimeout(() => {
                             this.currentSlideIndex++;
                             this.renderTVFrame();
