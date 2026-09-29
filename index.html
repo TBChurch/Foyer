@@ -193,8 +193,8 @@
 
         <!-- TV PRESENTATION VIEW (Fullscreen Player) -->
         <div id="tv-display" class="fixed inset-0 bg-black z-50 flex flex-col hidden select-none">
-            <!-- Fullscreen Media Stage -->
-            <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
+            <!-- Fullscreen Media Stage (Pure Black Background) -->
+            <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center" style="background-color: #000000 !important;">
                 <!-- Slides render here -->
             </div>
 
@@ -592,7 +592,7 @@
                     activeClass = '';
                 }
 
-                stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass}">${contentHtml}</div>`;
+                stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass}" style="background-color: #000000 !important;">${contentHtml}</div>`;
                 
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
