@@ -177,76 +177,50 @@
                 this.slideTimer = null;
                 this.isTVMode = false;
 
-                this.loadLocal();
                 this.initListeners();
-
-                if (this.cloudBinUrl) {
-                    this.pullFromCloud(true);
-                    setInterval(() => this.pullFromCloud(true), 10000);
-                }
-            }
-
-            async pushToCloud() {
-                if (!this.cloudBinUrl) return;
-                try {
-                    const headers = { "Content-Type": "application/json" };
-                    if (this.cloudApiKey) headers["X-Master-Key"] = this.cloudApiKey;
-                    await fetch(this.cloudBinUrl, { method: "PUT", headers: headers, body: JSON.stringify(this.state) });
-                } catch (e) {
-                    console.warn("Cloud push deferred:", e);
-                }
-            }
-
-            async pullFromCloud(silent = false) {
-                if (!this.cloudBinUrl) return;
-                try {
-                    const headers = {};
-                    if (this.cloudApiKey) headers["X-Master-Key"] = this.cloudApiKey;
-                    const response = await fetch(this.cloudBinUrl, { method: "GET", headers: headers });
-                    if (response.ok) {
-                        const data = await response.json();
-                        const remoteState = data.record || data;
-                        if (remoteState && remoteState.slides) {
-                            this.state.slides = remoteState.slides || this.state.slides;
-                            if (remoteState.ticker) this.state.ticker = remoteState.ticker;
-                            if (remoteState.settings) this.state.settings = remoteState.settings;
-                            this.renderAdmin();
-                            if (this.isTVMode) this.renderTVFrame();
-                        }
-                    }
-                } catch (e) {
-                    if (!silent) console.warn("Cloud pull skipped:", e);
-                }
-            }
-
-            saveLocal() {
-                try {
-                    localStorage.setItem('rolling_signage_state', JSON.stringify(this.state));
-                } catch (e) {
-                    console.warn("Storage limit reached:", e);
-                }
-            }
-
-            loadLocal() {
-                try {
-                    const saved = localStorage.getItem('rolling_signage_state');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        if (parsed && parsed.slides) {
-                            this.state.slides = parsed.slides || [];
-                            if (parsed.ticker) this.state.ticker = parsed.ticker;
-                            if (parsed.settings) this.state.settings = parsed.settings;
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Load local error:", e);
-                }
                 this.renderAdmin();
             }
 
-            saveState() {
-                this.saveLocal();
-                this.pushToCloud();
+            handleFiles(files) {
+                Array.from(files).forEach(file => {
+                    // Use lightweight Object URLs instead of massive Base64 strings to prevent crashes/disappearing slides
+                    const objectUrl = URL.createObjectURL(file);
+                    const isVideo = file.type.startsWith('video/');
+                    
+                    this.state.slides.push({
+                        id: 'slide_' + Math.random().toString(36).substring(2),
+                        type: isVideo ? 'video' : 'image',
+                        url: objectUrl,
+                        name: file.name,
+                        fit: 'contain',
+                        duration: this.state.settings.defaultDuration
+                    });
+                });
+                this.renderAdmin();
+            }
+
+            addTextSlide() {
+                this.state.slides.push({
+                    id: 'slide_' + Math.random().toString(36).substring(2),
+                    type: 'text',
+                    title: 'Welcome!',
+                    content: 'Add your announcements and custom text here.',
+                    fit: 'contain',
+                    duration: this.state.settings.defaultDuration
+                });
+                this.renderAdmin();
+            }
+
+            deleteSlide(id) {
+                this.state.slides = this.state.slides.filter(s => s.id !== id);
+                this.renderAdmin();
+            }
+
+            updateSlideField(id, field, val) {
+                const slide = this.state.slides.find(s => s.id === id);
+                if (slide) {
+                    slide[field] = val;
+                }
             }
 
             initListeners() {
@@ -275,67 +249,16 @@
 
                 document.getElementById('ticker-text')?.addEventListener('input', (e) => {
                     this.state.ticker.text = e.target.value;
-                    this.saveState();
                 });
                 document.getElementById('ticker-enabled')?.addEventListener('change', (e) => {
                     this.state.ticker.enabled = e.target.checked;
-                    this.saveState();
                 });
                 document.getElementById('global-duration')?.addEventListener('change', (e) => {
                     this.state.settings.defaultDuration = parseInt(e.target.value) || 10;
-                    this.saveState();
                 });
                 document.getElementById('global-transition')?.addEventListener('change', (e) => {
                     this.state.settings.transition = e.target.value;
-                    this.saveState();
                 });
-            }
-
-            handleFiles(files) {
-                Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    const isVideo = file.type.startsWith('video/');
-                    reader.onload = (e) => {
-                        this.state.slides.push({
-                            id: 'slide_' + Math.random().toString(36).substring(2),
-                            type: isVideo ? 'video' : 'image',
-                            url: e.target.result,
-                            name: file.name,
-                            fit: 'contain',
-                            duration: this.state.settings.defaultDuration
-                        });
-                        this.renderAdmin();
-                        this.saveState();
-                    };
-                    reader.readAsDataURL(file);
-                });
-            }
-
-            addTextSlide() {
-                this.state.slides.push({
-                    id: 'slide_' + Math.random().toString(36).substring(2),
-                    type: 'text',
-                    title: 'Welcome!',
-                    content: 'Add your announcements and custom text here.',
-                    fit: 'contain',
-                    duration: this.state.settings.defaultDuration
-                });
-                this.renderAdmin();
-                this.saveState();
-            }
-
-            deleteSlide(id) {
-                this.state.slides = this.state.slides.filter(s => s.id !== id);
-                this.renderAdmin();
-                this.saveState();
-            }
-
-            updateSlideField(id, field, val) {
-                const slide = this.state.slides.find(s => s.id === id);
-                if (slide) {
-                    slide[field] = val;
-                    this.saveState();
-                }
             }
 
             renderAdmin() {
@@ -388,7 +311,13 @@
             }
 
             exportJSON() {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.state, null, 2));
+                // Export metadata config safely without breaking due to blob URLs
+                const exportData = {
+                    ticker: this.state.ticker,
+                    settings: this.state.settings,
+                    slides: this.state.slides.map(s => ({ type: s.type, name: s.name, title: s.title, content: s.content, fit: s.fit, duration: s.duration }))
+                };
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
                 const a = document.createElement('a');
                 a.href = dataStr;
                 a.download = "signage_playlist.json";
@@ -398,23 +327,7 @@
             }
 
             importJSON(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const parsed = JSON.parse(e.target.result);
-                        if (parsed && parsed.slides) {
-                            this.state = parsed;
-                            this.renderAdmin();
-                            this.saveState();
-                            alert("Playlist imported successfully!");
-                        }
-                    } catch (err) {
-                        alert("Invalid JSON file format.");
-                    }
-                };
-                reader.readAsText(file);
+                alert("To add media files, please drag and drop them directly onto the dropzone.");
             }
 
             launchTVMode() {
