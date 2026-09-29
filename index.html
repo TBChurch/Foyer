@@ -98,7 +98,7 @@
                     <!-- Drag & Drop Uploader Box -->
                     <div id="dropzone" class="dropzone">
                         <div style="width: 3rem; height: 3rem; border-radius: 9999px; background-color: #1f2937; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #60a5fa;">
-                            📁
+                            📄
                         </div>
                         <div>
                             <p style="font-weight: 500; color: #e5e7eb;">Drag & drop image or video files here</p>
@@ -258,7 +258,6 @@
                         const data = await response.json();
                         const remoteState = data.record || data;
                         if (remoteState && remoteState.slides) {
-                            // Ensure structure safety even on remote data
                             this.state = {
                                 slides: remoteState.slides || [],
                                 ticker: {
@@ -326,41 +325,57 @@
                 const dropzone = document.getElementById('dropzone');
                 const fileInput = document.getElementById('file-input');
 
-                dropzone.addEventListener('click', () => fileInput.click());
-                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#3b82f6'; dropzone.style.backgroundColor = '#111827'; });
-                dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = '#374151'; dropzone.style.backgroundColor = 'rgba(17, 24, 39, 0.5)'; });
-                dropzone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropzone.style.borderColor = '#374151';
-                    dropzone.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
-                    if (e.dataTransfer.files.length) {
-                        this.handleFiles(e.dataTransfer.files);
-                    }
-                });
+                if (dropzone && fileInput) {
+                    dropzone.addEventListener('click', () => fileInput.click());
+                    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#3b82f6'; dropzone.style.backgroundColor = '#111827'; });
+                    dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = '#374151'; dropzone.style.backgroundColor = 'rgba(17, 24, 39, 0.5)'; });
+                    dropzone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        dropzone.style.borderColor = '#374151';
+                        dropzone.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
+                        if (e.dataTransfer.files.length) {
+                            this.handleFiles(e.dataTransfer.files);
+                        }
+                    });
 
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length) {
-                        this.handleFiles(e.target.files);
-                    }
-                });
+                    fileInput.addEventListener('change', (e) => {
+                        if (e.target.files.length) {
+                            this.handleFiles(e.target.files);
+                        }
+                    });
+                }
 
-                // Button bindings
-                document.getElementById('btn-launch-tv').addEventListener('click', () => this.launchTVMode());
-                document.getElementById('btn-exit-tv').addEventListener('click', () => this.exitTVMode());
-                document.getElementById('btn-add-text').addEventListener('click', () => this.addTextSlide());
-                document.getElementById('btn-export').addEventListener('click', () => this.exportJSON());
-                document.getElementById('import-json').addEventListener('change', (e) => this.importJSON(e));
+                // Button bindings with safety checks
+                const bindClick = (id, handler) => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('click', handler);
+                };
 
-                // Settings listeners
-                document.getElementById('ticker-text').addEventListener('input', () => this.updateTickerSettings());
-                document.getElementById('ticker-enabled').addEventListener('change', () => this.updateTickerSettings());
-                document.getElementById('global-duration').addEventListener('change', () => this.updateGlobalSettings());
-                document.getElementById('global-transition').addEventListener('change', () => this.updateGlobalSettings());
+                const bindChange = (id, handler) => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('change', handler);
+                };
+
+                const bindInput = (id, handler) => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', handler);
+                };
+
+                bindClick('btn-launch-tv', () => this.launchTVMode());
+                bindClick('btn-exit-tv', () => this.exitTVMode());
+                bindClick('btn-add-text', () => this.addTextSlide());
+                bindClick('btn-export', () => this.exportJSON());
+                bindChange('import-json', (e) => this.importJSON(e));
+
+                bindInput('ticker-text', () => this.updateTickerSettings());
+                bindChange('ticker-enabled', () => this.updateTickerSettings());
+                bindChange('global-duration', () => this.updateGlobalSettings());
+                bindChange('global-transition', () => this.updateGlobalSettings());
 
                 let hideTimer;
                 const tvControls = document.getElementById('tv-controls');
                 const showControls = () => {
-                    if (!this.isTVMode) return;
+                    if (!this.isTVMode || !tvControls) return;
                     tvControls.style.opacity = '1';
                     clearTimeout(hideTimer);
                     hideTimer = setTimeout(() => {
@@ -643,7 +658,10 @@
             }
         }
 
-        const app = new RollingSignageApp();
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new RollingSignageApp();
+        });
     </script>
 </body>
 </html>
