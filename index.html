@@ -3,767 +3,795 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling Signage TV Web App</title>
-    <!-- Tailwind CSS -->
+    <title>Rolling Signage TV Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts: Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
         }
-        /* Custom slide transition effects */
-        .slide-fade {
-            animation: fadeInOut 0.8s ease-in-out;
-        }
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: scale(0.98); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        .slide-slide {
-            animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes slideIn {
-            0% { transform: translateY(30px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .slide-zoom {
-            animation: zoomIn 0.7s ease-out;
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         @keyframes zoomIn {
-            0% { transform: scale(1.05); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+            from { transform: scale(1.1); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
-        /* Ticker animation */
         @keyframes ticker {
             0% { transform: translate3d(0, 0, 0); }
             100% { transform: translate3d(-50%, 0, 0); }
         }
-        .animate-ticker {
-            display: inline-block;
-            white-space: nowrap;
-            animation: ticker 30s linear infinite;
-        }
-        .animate-ticker:hover {
-            animation-play-state: paused;
-        }
+
+        .animate-fade { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide { animation: slideInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-zoom { animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-ticker { animation: ticker 30s linear infinite; }
+        .animate-ticker:hover { animation-play-state: paused; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
     </style>
 </head>
-<body class="h-full bg-slate-900 text-slate-100 flex flex-col overflow-hidden">
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
 
-    <div id="app" class="flex flex-col h-full w-full">
-        <!-- Top Navbar -->
-        <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between shadow-md z-10">
-            <div class="flex items-center space-x-3">
-                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg flex items-center justify-center">
-                    <i class="fa-solid fa-tv text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                        Rolling Signage TV
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Pro Signage</span>
-                    </h1>
-                    <p class="text-xs text-slate-400">Manage digital signage playlists & display in full screen TV mode</p>
-                </div>
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.FB = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot };
+    </script>
+
+    <!-- App Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0 z-20 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-md shadow-indigo-500/20">
+                <i class="fa-solid fa-tv text-white text-lg"></i>
             </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="appState.openAddModal()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/20 transition-all cursor-pointer">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Add Slide</span>
+            <div>
+                <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
+                    Rolling Signage Studio
+                    <span id="sync-status" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span> Connecting Cloud...
+                    </span>
+                </h1>
+                <p class="text-xs text-slate-400">Multi-device real-time digital display system</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button onclick="openTickerModal()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition flex items-center gap-2 border border-slate-700/60 shadow-sm">
+                <i class="fa-solid fa-bullhorn text-indigo-400"></i>
+                <span class="hidden sm:inline">Ticker Bar</span>
+            </button>
+
+            <button onclick="exportConfig()" title="Export JSON" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700/60">
+                <i class="fa-solid fa-download"></i>
+            </button>
+            <label title="Import JSON" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700/60 cursor-pointer">
+                <i class="fa-solid fa-upload"></i>
+                <input type="file" accept=".json" onchange="importConfig(event)" class="hidden">
+            </label>
+
+            <div class="h-6 w-px bg-slate-800 mx-1"></div>
+
+            <button onclick="startPresentation()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center gap-2 transform active:scale-95">
+                <i class="fa-solid fa-play"></i>
+                <span>Launch TV Display</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Panel: Slide List & Drag-Drop Uploader -->
+        <section class="w-full md:w-96 bg-slate-900/80 border-r border-slate-800 flex flex-col shrink-0">
+            <div class="p-4 border-b border-slate-800/80 flex items-center justify-between">
+                <h2 class="font-semibold text-sm text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-indigo-400"></i> Slides Queue (<span id="slide-count">0</span>)
+                </h2>
+                <button onclick="addNewSlide()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> Add Slide
                 </button>
-                <button onclick="appState.startPresentation()" class="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-emerald-600/20 transition-all cursor-pointer">
-                    <i class="fa-solid fa-play"></i>
-                    <span>Start TV Mode</span>
+            </div>
+
+            <!-- Drag & Drop Dropzone Box -->
+            <div id="dropzone" class="mx-4 mt-4 border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/40 rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                </div>
+                <p class="text-xs font-semibold text-slate-200">Drag & Drop media here</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Images or MP4 videos for instant slides</p>
+                <input type="file" id="dropzone-input" accept="image/*,video/*" multiple class="hidden">
+            </div>
+
+            <!-- Slide list container -->
+            <div id="slide-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Dynamically populated slide cards -->
+            </div>
+        </section>
+
+        <!-- Right Panel: Slide Editor Form -->
+        <section class="flex-1 bg-slate-950 flex flex-col overflow-y-auto">
+            <div id="editor-container" class="max-w-3xl w-full mx-auto p-6 md:p-10 my-auto">
+                <!-- Selected slide editor form -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Fullscreen TV Presentation Mode Overlay -->
+    <div id="tv-display" class="fixed inset-0 bg-black z-50 hidden flex flex-col justify-between overflow-hidden select-none cursor-none">
+        <div id="tv-viewport" class="absolute inset-0 flex items-center justify-center overflow-hidden"></div>
+
+        <!-- TV HUD Controls on Mouse Move -->
+        <div id="tv-hud" class="absolute top-0 inset-x-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 via-black/40 to-transparent opacity-0 transition-opacity duration-300 z-30">
+            <div class="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-white">
+                <i class="fa-solid fa-tv text-indigo-400"></i>
+                <span id="tv-counter" class="text-sm font-semibold tracking-wide">Slide 1 of 5</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="togglePausePresentation()" id="tv-pause-btn" class="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl text-sm font-medium transition border border-white/10 flex items-center gap-2">
+                    <i class="fa-solid fa-pause" id="tv-pause-icon"></i> <span id="tv-pause-text">Pause</span>
                 </button>
-                <div class="h-6 w-px bg-slate-700 mx-1"></div>
-                <button onclick="appState.exportJSON()" title="Backup JSON" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2.5 rounded-xl text-sm transition-all cursor-pointer">
-                    <i class="fa-solid fa-download"></i>
+                <button onclick="stopPresentation()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 backdrop-blur-md text-red-300 rounded-xl text-sm font-medium transition border border-red-500/20 flex items-center gap-2">
+                    <i class="fa-solid fa-xmark"></i> Exit Display
                 </button>
-                <label title="Restore JSON" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2.5 rounded-xl text-sm transition-all cursor-pointer inline-flex items-center justify-center">
-                    <i class="fa-solid fa-upload"></i>
-                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="appState.importJSON(event)">
-                </label>
             </div>
-        </header>
+        </div>
 
-        <!-- Main Workspace / Dashboard -->
-        <main class="flex-1 flex overflow-hidden">
-            <!-- Left Side: Ticker & Global Settings -->
-            <div class="w-80 bg-slate-800/60 border-r border-slate-700 p-6 flex flex-col justify-between overflow-y-auto">
-                <div class="space-y-6">
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <i class="fa-solid fa-bullhorn text-indigo-400"></i> Bottom Ticker Bar
-                        </h2>
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">Ticker Message</label>
-                                <textarea id="tickerText" rows="3" oninput="appState.updateTicker(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <label class="text-xs text-slate-400">Show Ticker</label>
-                                <input type="checkbox" id="tickerEnabled" onchange="appState.toggleTicker(this.checked)" class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-indigo-500 cursor-pointer">
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="border-slate-700">
-
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <i class="fa-solid fa-sliders text-indigo-400"></i> Quick Stats
-                        </h2>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="bg-slate-900/60 border border-slate-700/60 p-3 rounded-xl">
-                                <div class="text-2xl font-bold text-indigo-400" id="statTotalSlides">0</div>
-                                <div class="text-xs text-slate-400">Total Slides</div>
-                            </div>
-                            <div class="bg-slate-900/60 border border-slate-700/60 p-3 rounded-xl">
-                                <div class="text-2xl font-bold text-emerald-400" id="statTotalDuration">0s</div>
-                                <div class="text-xs text-slate-400">Loop Time</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-900/40 border border-slate-700/40 p-4 rounded-xl text-xs text-slate-400 space-y-2">
-                    <div class="font-medium text-slate-300 flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-info text-indigo-400"></i> Pro Tip
-                    </div>
-                    <p>Upload images directly from your device or use URLs to build dynamic signage loops instantly.</p>
-                </div>
+        <!-- Rolling Ticker Bar -->
+        <div id="tv-ticker-bar" class="absolute bottom-0 inset-x-0 bg-indigo-600 text-white font-semibold py-3 overflow-hidden shadow-2xl z-30 hidden border-t border-indigo-400/30">
+            <div class="flex whitespace-nowrap animate-ticker">
+                <span id="ticker-text-1" class="text-lg px-8 tracking-wide"></span>
+                <span class="text-indigo-300 px-4">•</span>
+                <span id="ticker-text-2" class="text-lg px-8 tracking-wide"></span>
+                <span class="text-indigo-300 px-4">•</span>
             </div>
-
-            <!-- Right Side: Slide List & Preview Card -->
-            <div class="flex-1 flex flex-col bg-slate-900 overflow-hidden">
-                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h2 class="text-lg font-semibold text-white">Playlist Manager</h2>
-                        <p class="text-xs text-slate-400">Drag or reorder slides, preview content, and configure display timings</p>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button onclick="appState.clearAllSlides()" class="text-xs text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer">
-                            <i class="fa-solid fa-trash-can mr-1"></i> Clear All
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-y-auto p-6">
-                    <div id="slidesList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        <!-- Dynamic Slide Cards inserted here -->
-                    </div>
-                    <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-center py-16">
-                        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4 text-2xl">
-                            <i class="fa-solid fa-clapperboard"></i>
-                        </div>
-                        <h3 class="text-base font-medium text-slate-300">No slides in playlist</h3>
-                        <p class="text-xs text-slate-500 max-w-sm mt-1">Get started by creating your first signage slide with custom text, images, or videos.</p>
-                        <button onclick="appState.openAddModal()" class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-medium transition cursor-pointer">
-                            Create First Slide
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </main>
+        </div>
     </div>
 
-    <!-- Add/Edit Slide Modal -->
-    <div id="slideModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden transition-all">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/80">
-                <h3 id="modalTitle" class="text-base font-semibold text-white">Add New Slide</h3>
-                <button onclick="appState.closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer">
+    <!-- Ticker Settings Modal -->
+    <div id="ticker-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-bullhorn text-indigo-400"></i> Configure Ticker Bar
+                </h3>
+                <button onclick="closeTickerModal()" class="text-slate-400 hover:text-white transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            
-            <form id="slideForm" onsubmit="appState.saveSlide(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
-                <input type="hidden" id="slideId">
-
+            <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Slide Title</label>
-                    <input type="text" id="slideTitle" required placeholder="e.g. Morning Welcome & Announcements" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Show Rolling Ticker on TV Display</label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="ticker-enabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 border border-slate-700"></div>
+                        <span class="ml-3 text-sm font-medium text-slate-300">Enable Ticker</span>
+                    </label>
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Slide Type</label>
-                        <select id="slideType" onchange="appState.handleTypeChange(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
-                            <option value="text">Text / Announcement</option>
-                            <option value="image">Image Slide</option>
-                            <option value="video">Video Slide</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Duration (Seconds)</label>
-                        <input type="number" id="slideDuration" min="1" max="300" value="10" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-                </div>
-
-                <!-- Media Section (Images / Videos) -->
-                <div id="mediaGroup" class="space-y-4 hidden">
-                    <div id="imageUploadSection" class="space-y-2">
-                        <label class="block text-xs font-medium text-slate-300">Upload Image File (Device)</label>
-                        <div class="flex items-center space-x-2">
-                            <label class="flex-1 bg-slate-900 border border-dashed border-slate-600 hover:border-indigo-500 rounded-xl px-4 py-2.5 text-xs text-slate-300 flex items-center justify-center space-x-2 cursor-pointer transition">
-                                <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
-                                <span id="uploadFileName">Choose image file...</span>
-                                <input type="file" id="imageFileInput" accept="image/*" class="hidden" onchange="appState.handleImageUpload(event)">
-                            </label>
-                            <button type="button" onclick="appState.clearImageFile()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-2.5 rounded-xl text-xs transition" title="Clear Upload">
-                                <i class="fa-solid fa-rotate-left"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Or Media URL (Image or Direct MP4 Video link)</label>
-                        <input type="url" id="slideMediaUrl" placeholder="https://images.unsplash.com/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
-                    </div>
-
-                    <div id="fitModeGroup" class="hidden">
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Image Fit Mode (Full Screen)</label>
-                        <select id="slideFitMode" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
-                            <option value="cover">Cover (Full Screen Fill / Edge-to-Edge)</option>
-                            <option value="contain">Contain (Fit Entire Image / Letterbox)</option>
-                        </select>
-                    </div>
-                </div>
-
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Content / Description / HTML</label>
-                    <textarea id="slideContent" rows="3" placeholder="Enter slide message or overlay caption..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Ticker Announcement Text</label>
+                    <textarea id="ticker-message" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition" placeholder="Breaking News: Guest Wi-Fi password is Welcome2026!"></textarea>
                 </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Background Theme</label>
-                        <select id="slideBgColor" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
-                            <option value="bg-slate-900">Slate Dark</option>
-                            <option value="bg-indigo-950">Deep Indigo</option>
-                            <option value="bg-blue-950">Navy Blue</option>
-                            <option value="bg-emerald-950">Emerald Forest</option>
-                            <option value="bg-violet-950">Violet Dusk</option>
-                            <option value="bg-amber-950">Warm Amber</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Transition Effect</label>
-                        <select id="slideTransition" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
-                            <option value="slide-fade">Fade</option>
-                            <option value="slide-slide">Slide Up</option>
-                            <option value="slide-zoom">Zoom</option>
-                        </select>
-                    </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button onclick="closeTickerModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition">Cancel</button>
+                    <button onclick="saveTickerSettings()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-indigo-600/30">Save Ticker</button>
                 </div>
-
-                <div class="pt-4 border-t border-slate-700 flex items-center justify-end space-x-3">
-                    <button type="button" onclick="appState.closeModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer">
-                        Cancel
-                    </button>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/20 transition cursor-pointer">
-                        Save Slide
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- TV Presentation Fullscreen Mode -->
-    <div id="tvPresentation" class="fixed inset-0 z-50 bg-black hidden flex flex-col justify-between overflow-hidden select-none">
-        <div id="tvHeader" class="absolute top-0 left-0 right-0 p-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-20 opacity-0 transition-opacity duration-300 hover:opacity-100">
-            <div class="flex items-center space-x-3 text-white/80">
-                <span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
-                <span id="tvSlideCounter" class="text-sm font-medium">Slide 1 of 5</span>
-            </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="appState.toggleTvPlayPause()" id="tvPlayPauseBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl backdrop-blur-md text-xs font-medium transition cursor-pointer">
-                    <i class="fa-solid fa-pause mr-1"></i> Pause
-                </button>
-                <button onclick="appState.stopPresentation()" class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-xl backdrop-blur-md text-xs font-medium transition cursor-pointer">
-                    <i class="fa-solid fa-xmark mr-1"></i> Exit TV Mode
-                </button>
-            </div>
-        </div>
-
-        <div id="tvScreenArea" class="flex-1 relative flex items-center justify-center overflow-hidden">
-            <!-- Dynamic Active Slide Rendered Here -->
-        </div>
-
-        <div id="tvTickerContainer" class="bg-black/90 border-t border-slate-800 text-white py-3 px-4 overflow-hidden relative z-10 hidden">
-            <div class="whitespace-nowrap overflow-hidden relative w-full">
-                <div id="tvTickerContent" class="animate-ticker text-sm font-medium text-indigo-300 flex items-center space-x-12">
-                    <!-- Ticker text inserted here -->
-                </div>
-            </div>
-        </div>
-
-        <div class="h-1 bg-slate-800 w-full relative z-20">
-            <div id="tvProgressBar" class="h-full bg-indigo-500 transition-all duration-100 ease-linear" style="width: 0%"></div>
-        </div>
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toast-msg" class="text-sm font-medium">Saved successfully!</span>
     </div>
 
     <script>
-        class RollingSignageApp {
-            constructor() {
-                this.slides = [];
-                this.tickerText = "Welcome to Rolling Signage TV! • Real-time digital signage displays made easy. • Enjoy your personalized playlist.";
-                this.tickerEnabled = true;
-                
-                // TV Presentation state
-                this.currentTvIndex = 0;
-                this.tvTimer = null;
-                this.tvProgressTimer = null;
-                this.isPaused = false;
-                this.tempImageBase64 = '';
-
-                this.loadFromStorage();
-                this.render();
-            }
-
-            loadFromStorage() {
-                const savedSlides = localStorage.getItem('rolling_signage_slides');
-                const savedTicker = localStorage.getItem('rolling_signage_ticker');
-                const savedTickerEnabled = localStorage.getItem('rolling_signage_ticker_enabled');
-
-                if (savedSlides) {
-                    try {
-                        this.slides = JSON.parse(savedSlides);
-                    } catch (e) {
-                        this.slides = [];
-                    }
-                } else {
-                    this.slides = [
-                        {
-                            id: 'slide_1',
-                            title: 'Welcome to Our Lobby',
-                            type: 'text',
-                            duration: 8,
-                            mediaUrl: '',
-                            fitMode: 'cover',
-                            content: 'Please check in at the reception desk upon arrival.\nEnjoy complimentary Wi-Fi: SignageGuest / Welcome2026',
-                            bgColor: 'bg-indigo-950',
-                            transition: 'slide-fade'
-                        },
-                        {
-                            id: 'slide_2',
-                            title: 'Featured Signage Display',
-                            type: 'image',
-                            duration: 10,
-                            mediaUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80',
-                            fitMode: 'cover',
-                            content: 'Inspiring teamwork and innovation across all modern workspaces.',
-                            bgColor: 'bg-slate-900',
-                            transition: 'slide-zoom'
-                        }
-                    ];
+        let appState = {
+            slides: [
+                {
+                    id: 'slide-1',
+                    type: 'text',
+                    title: 'Welcome to Rolling Signage Studio',
+                    subtitle: 'Real-time collaborative digital displays for modern offices & lobbies',
+                    bgColor: '#0f172a',
+                    textColor: '#ffffff',
+                    duration: 8,
+                    transition: 'fade'
+                },
+                {
+                    id: 'slide-2',
+                    type: 'image',
+                    title: 'Stunning Visual Displays',
+                    url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80',
+                    fit: 'cover',
+                    duration: 10,
+                    transition: 'slide'
                 }
-
-                if (savedTicker !== null) this.tickerText = savedTicker;
-                if (savedTickerEnabled !== null) this.tickerEnabled = savedTickerEnabled === 'true';
-
-                document.getElementById('tickerText').value = this.tickerText;
-                document.getElementById('tickerEnabled').checked = this.tickerEnabled;
+            ],
+            ticker: {
+                enabled: true,
+                message: '📢 Welcome guests! Please check in at the front desk. Next company town hall starts at 3:00 PM.'
             }
+        };
 
-            saveToStorage() {
-                localStorage.setItem('rolling_signage_slides', JSON.stringify(this.slides));
-                localStorage.setItem('rolling_signage_ticker', this.tickerText);
-                localStorage.setItem('rolling_signage_ticker_enabled', this.tickerEnabled);
-            }
+        let currentSlideId = appState.slides[0]?.id || null;
+        let isPaused = false;
+        let presentationTimer = null;
+        let currentSlideIndex = 0;
+        let hudTimeout = null;
 
-            render() {
-                const listContainer = document.getElementById('slidesList');
-                const emptyState = document.getElementById('emptyState');
-                const statTotalSlides = document.getElementById('statTotalSlides');
-                const statTotalDuration = document.getElementById('statTotalDuration');
+        let db = null;
+        let docRef = null;
 
-                statTotalSlides.textContent = this.slides.length;
-                const totalDur = this.slides.reduce((acc, s) => acc + parseInt(s.duration || 10), 0);
-                statTotalDuration.textContent = totalDur + 's';
+        window.addEventListener('DOMContentLoaded', async () => {
+            renderSlideList();
+            if (currentSlideId) selectSlide(currentSlideId);
+            initDropzone();
+            initFirebaseSync();
+        });
 
-                if (this.slides.length === 0) {
-                    listContainer.innerHTML = '';
-                    emptyState.classList.remove('hidden');
+        async function initFirebaseSync() {
+            const statusEl = document.getElementById('sync-status');
+            try {
+                const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, doc, onSnapshot } = window.FB;
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                
+                if (!firebaseConfig.projectId) {
+                    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Local Offline Mode`;
+                    statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
                     return;
                 }
 
-                emptyState.classList.add('hidden');
-                listContainer.innerHTML = this.slides.map((slide, index) => `
-                    <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between shadow-lg relative group hover:border-indigo-500/50 transition">
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300 flex items-center gap-1.5">
-                                    <i class="fa-solid ${slide.type === 'text' ? 'fa-align-left text-indigo-400' : slide.type === 'image' ? 'fa-image text-emerald-400' : 'fa-video text-blue-400'}"></i>
-                                    ${slide.type.toUpperCase()}
-                                </span>
-                                <div class="flex items-center space-x-1 text-slate-400">
-                                    <span class="text-xs mr-2"><i class="fa-regular fa-clock mr-1"></i>${slide.duration}s</span>
-                                    <button onclick="appState.moveSlide(${index}, -1)" ${index === 0 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''} title="Move Up" class="p-1.5 hover:text-white rounded transition cursor-pointer">
-                                        <i class="fa-solid fa-arrow-up text-xs"></i>
-                                    </button>
-                                    <button onclick="appState.moveSlide(${index}, 1)" ${index === this.slides.length - 1 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''} title="Move Down" class="p-1.5 hover:text-white rounded transition cursor-pointer">
-                                        <i class="fa-solid fa-arrow-down text-xs"></i>
-                                    </button>
-                                    <button onclick="appState.openEditModal('${slide.id}')" title="Edit Slide" class="p-1.5 hover:text-indigo-400 rounded transition cursor-pointer">
-                                        <i class="fa-solid fa-pen text-xs"></i>
-                                    </button>
-                                    <button onclick="appState.deleteSlide('${slide.id}')" title="Delete Slide" class="p-1.5 hover:text-red-400 rounded transition cursor-pointer">
-                                        <i class="fa-solid fa-trash text-xs"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <h3 class="text-sm font-semibold text-white mb-1 truncate">${escapeHtml(slide.title)}</h3>
-                            <p class="text-xs text-slate-400 line-clamp-2">${escapeHtml(slide.content || (slide.mediaUrl ? 'Media Asset Attached' : 'No content'))}</p>
-                        </div>
-                        <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-500">
-                            <span>Slide #${index + 1}</span>
-                            <span class="capitalize text-slate-400">${slide.fitMode ? slide.fitMode + ' fit • ' : ''}${slide.transition || 'Fade'}</span>
-                        </div>
-                    </div>
-                `).join('');
-            }
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                db = getFirestore(app);
 
-            openAddModal() {
-                document.getElementById('modalTitle').textContent = 'Add New Slide';
-                document.getElementById('slideForm').reset();
-                document.getElementById('slideId').value = '';
-                document.getElementById('slideDuration').value = '10';
-                document.getElementById('uploadFileName').textContent = 'Choose image file...';
-                this.tempImageBase64 = '';
-                this.handleTypeChange('text');
-                document.getElementById('slideModal').classList.remove('hidden');
-            }
-
-            openEditModal(id) {
-                const slide = this.slides.find(s => s.id === id);
-                if (!slide) return;
-
-                document.getElementById('modalTitle').textContent = 'Edit Slide';
-                document.getElementById('slideId').value = slide.id;
-                document.getElementById('slideTitle').value = slide.title;
-                document.getElementById('slideType').value = slide.type;
-                document.getElementById('slideDuration').value = slide.duration;
-                document.getElementById('slideMediaUrl').value = slide.mediaUrl && !slide.mediaUrl.startsWith('data:') ? slide.mediaUrl : '';
-                document.getElementById('slideFitMode').value = slide.fitMode || 'cover';
-                document.getElementById('slideContent').value = slide.content || '';
-                document.getElementById('slideBgColor').value = slide.bgColor || 'bg-slate-900';
-                document.getElementById('slideTransition').value = slide.transition || 'slide-fade';
-
-                if (slide.mediaUrl && slide.mediaUrl.startsWith('data:')) {
-                    this.tempImageBase64 = slide.mediaUrl;
-                    document.getElementById('uploadFileName').textContent = 'Image file loaded from storage';
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    this.tempImageBase64 = '';
-                    document.getElementById('uploadFileName').textContent = 'Choose image file...';
+                    await signInAnonymously(auth);
                 }
 
-                this.handleTypeChange(slide.type);
-                document.getElementById('slideModal').classList.remove('hidden');
+                // FIXED PATH: Ensure an even number of segments (artifacts -> signage_app -> config -> settings)
+                docRef = doc(db, 'artifacts', 'signage_app', 'config', 'settings');
+
+                onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const remoteData = docSnap.data();
+                        if (remoteData && remoteData.slides) {
+                            appState = remoteData;
+                            renderSlideList();
+                            if (!appState.slides.some(s => s.id === currentSlideId)) {
+                                currentSlideId = appState.slides[0]?.id || null;
+                            }
+                            if (currentSlideId) selectSlide(currentSlideId);
+                            statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Cloud Synced`;
+                            statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
+                        }
+                    } else {
+                        saveToCloud();
+                    }
+                }, (error) => {
+                    console.error("Cloud sync error:", error);
+                    statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Sync Error`;
+                    statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium flex items-center gap-1.5";
+                });
+
+            } catch (err) {
+                console.error("Firebase init failed:", err);
+                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Standalone Mode`;
+                statusEl.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5";
             }
+        }
 
-            closeModal() {
-                document.getElementById('slideModal').classList.add('hidden');
+        async function saveToCloud() {
+            if (!db || !docRef) return;
+            try {
+                const { setDoc } = window.FB;
+                await setDoc(docRef, appState);
+            } catch (e) {
+                console.error("Error saving state to cloud:", e);
             }
+        }
 
-            handleTypeChange(type) {
-                const mediaGroup = document.getElementById('mediaGroup');
-                const imageSection = document.getElementById('imageUploadSection');
-                const fitModeGroup = document.getElementById('fitModeGroup');
+        function initDropzone() {
+            const dropzone = document.getElementById('dropzone');
+            const input = document.getElementById('dropzone-input');
 
-                if (type === 'image') {
-                    mediaGroup.classList.remove('hidden');
-                    imageSection.classList.remove('hidden');
-                    fitModeGroup.classList.remove('hidden');
-                } else if (type === 'video') {
-                    mediaGroup.classList.remove('hidden');
-                    imageSection.classList.add('hidden');
-                    fitModeGroup.classList.add('hidden');
-                } else {
-                    mediaGroup.classList.add('hidden');
-                }
-            }
+            dropzone.addEventListener('click', () => input.click());
+            input.addEventListener('change', (e) => handleFiles(e.target.files));
 
-            handleImageUpload(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                document.getElementById('uploadFileName').textContent = file.name;
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.add('border-indigo-500', 'bg-indigo-500/10');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            });
+        }
+
+        function handleFiles(files) {
+            if (!files || files.length === 0) return;
+            Array.from(files).forEach(file => {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.tempImageBase64 = e.target.result;
+                reader.onload = function(e) {
+                    const isVideo = file.type.startsWith('video/');
+                    const newId = 'slide-' + Date.now() + Math.random().toString(36).substr(2, 5);
+                    const newSlide = {
+                        id: newId,
+                        type: isVideo ? 'video' : 'image',
+                        title: file.name.substring(0, file.name.lastIndexOf('.')) || file.name,
+                        url: e.target.result,
+                        fit: 'cover',
+                        duration: 10,
+                        transition: 'fade'
+                    };
+                    appState.slides.push(newSlide);
+                    saveToCloud();
+                    renderSlideList();
+                    selectSlide(newId);
+                    showToast(`Added ${newSlide.title}`);
                 };
                 reader.readAsDataURL(file);
-            }
+            });
+        }
 
-            clearImageFile() {
-                this.tempImageBase64 = '';
-                document.getElementById('imageFileInput').value = '';
-                document.getElementById('uploadFileName').textContent = 'Choose image file...';
-            }
-
-            saveSlide(event) {
-                event.preventDefault();
-                const id = document.getElementById('slideId').value;
-                const type = document.getElementById('slideType.value') || document.getElementById('slideType').value;
-                
-                let mediaUrl = document.getElementById('slideMediaUrl').value.trim();
-                if (type === 'image' && this.tempImageBase64) {
-                    mediaUrl = this.tempImageBase64;
-                }
-
-                const slideData = {
-                    id: id ? id : 'slide_' + Date.now(),
-                    title: document.getElementById('slideTitle').value,
-                    type: type,
-                    duration: parseInt(document.getElementById('slideDuration').value) || 10,
-                    mediaUrl: mediaUrl,
-                    fitMode: document.getElementById('slideFitMode').value,
-                    content: document.getElementById('slideContent').value,
-                    bgColor: document.getElementById('slideBgColor').value,
-                    transition: document.getElementById('slideTransition').value
-                };
-
-                if (id) {
-                    const idx = this.slides.findIndex(s => s.id === id);
-                    if (idx !== -1) this.slides[idx] = slideData;
-                } else {
-                    this.slides.push(slideData);
-                }
-
-                this.saveToStorage();
-                this.closeModal();
-                this.render();
-            }
-
-            deleteSlide(id) {
-                if (confirm('Are you sure you want to delete this slide?')) {
-                    this.slides = this.slides.filter(s => s.id !== id);
-                    this.saveToStorage();
-                    this.render();
-                }
-            }
-
-            clearAllSlides() {
-                if (confirm('Are you sure you want to remove all slides in this playlist?')) {
-                    this.slides = [];
-                    this.saveToStorage();
-                    this.render();
-                }
-            }
-
-            moveSlide(index, direction) {
-                const newIndex = index + direction;
-                if (newIndex < 0 || newIndex >= this.slides.length) return;
-                const temp = this.slides[index];
-                this.slides[index] = this.slides[newIndex];
-                this.slides[newIndex] = temp;
-                this.saveToStorage();
-                this.render();
-            }
-
-            updateTicker(val) {
-                this.tickerText = val;
-                this.saveToStorage();
-            }
-
-            toggleTicker(val) {
-                this.tickerEnabled = val;
-                this.saveToStorage();
-            }
-
-            exportJSON() {
-                const data = {
-                    slides: this.slides,
-                    tickerText: this.tickerText,
-                    tickerEnabled: this.tickerEnabled
-                };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `rolling-signage-backup-${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-
-            importJSON(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const parsed = JSON.parse(e.target.result);
-                        if (parsed.slides && Array.isArray(parsed.slides)) {
-                            this.slides = parsed.slides;
-                            if (parsed.tickerText) {
-                                this.tickerText = parsed.tickerText;
-                                document.getElementById('tickerText').value = this.tickerText;
-                            }
-                            if (parsed.tickerEnabled !== undefined) {
-                                this.tickerEnabled = parsed.tickerEnabled;
-                                document.getElementById('tickerEnabled').checked = this.tickerEnabled;
-                            }
-                            this.saveToStorage();
-                            this.render();
-                            alert('Playlist successfully imported!');
-                        } else {
-                            alert('Invalid JSON file format.');
-                        }
-                    } catch (err) {
-                        alert('Error parsing JSON backup file.');
-                    }
-                };
-                reader.readAsText(file);
-                event.target.value = '';
-            }
-
-            // TV Presentation Engine
-            startPresentation() {
-                if (this.slides.length === 0) {
-                    alert('Please add at least one slide before starting TV mode.');
-                    return;
-                }
-
-                this.currentTvIndex = 0;
-                this.isPaused = false;
-                document.getElementById('tvPresentation').classList.remove('hidden');
-                
-                const tvTickerContainer = document.getElementById('tvTickerContainer');
-                const tvTickerContent = document.getElementById('tvTickerContent');
-                if (this.tickerEnabled && this.tickerText.trim()) {
-                    tvTickerContainer.classList.remove('hidden');
-                    const repeatedText = `<span>${escapeHtml(this.tickerText)}</span>`.repeat(4);
-                    tvTickerContent.innerHTML = repeatedText;
-                } else {
-                    tvTickerContainer.classList.add('hidden');
-                }
-
-                const elem = document.documentElement;
-                if (elem.requestFullscreen) {
-                    elem.requestFullscreen().catch(() => {});
-                }
-
-                this.playCurrentTvSlide();
-            }
-
-            stopPresentation() {
-                if (this.tvTimer) clearTimeout(this.tvTimer);
-                if (this.tvProgressTimer) clearInterval(this.tvProgressTimer);
-                document.getElementById('tvPresentation').classList.add('hidden');
-
-                if (document.fullscreenElement) {
-                    document.exitFullscreen().catch(() => {});
-                }
-            }
-
-            toggleTvPlayPause() {
-                this.isPaused = !this.isPaused;
-                const btn = document.getElementById('tvPlayPauseBtn');
-                if (this.isPaused) {
-                    if (this.tvTimer) clearTimeout(this.tvTimer);
-                    if (this.tvProgressTimer) clearInterval(this.tvProgressTimer);
-                    btn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> Resume';
-                } else {
-                    btn.innerHTML = '<i class="fa-solid fa-pause mr-1"></i> Pause';
-                    this.playCurrentTvSlide();
-                }
-            }
-
-            playCurrentTvSlide() {
-                if (this.tvTimer) clearTimeout(this.tvTimer);
-                if (this.tvProgressTimer) clearInterval(this.tvProgressTimer);
-
-                const slide = this.slides[this.currentTvIndex];
-                const screenArea = document.getElementById('tvScreenArea');
-                const counter = document.getElementById('tvSlideCounter');
-                const progressBar = document.getElementById('tvProgressBar');
-
-                counter.textContent = `Slide ${this.currentTvIndex + 1} of ${this.slides.length}`;
-
-                let contentHtml = '';
-                if (slide.type === 'text') {
-                    contentHtml = `
-                        <div class="max-w-4xl px-8 text-center space-y-6 ${slide.transition || 'slide-fade'}">
-                            <h2 class="text-4xl md:text-6xl font-bold tracking-tight text-white">${escapeHtml(slide.title)}</h2>
-                            <p class="text-xl md:text-2xl text-slate-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(slide.content)}</p>
-                        </div>
-                    `;
-                } else if (slide.type === 'image') {
-                    const fitClass = slide.fitMode === 'contain' ? 'object-contain max-h-[85vh] max-w-[90vw]' : 'object-cover w-full h-full absolute inset-0';
-                    const captionOverlay = slide.content ? `
-                        <div class="absolute bottom-8 left-8 right-8 bg-black/60 backdrop-blur-md p-6 rounded-2xl max-w-2xl mx-auto text-center z-10 border border-white/10">
-                            <h3 class="text-xl font-bold text-white mb-1">${escapeHtml(slide.title)}</h3>
-                            <p class="text-sm text-slate-200">${escapeHtml(slide.content)}</p>
-                        </div>
-                    ` : '';
-
-                    contentHtml = `
-                        <div class="absolute inset-0 flex items-center justify-center overflow-hidden ${slide.transition || 'slide-fade'}">
-                            <img src="${slide.mediaUrl}" alt="${escapeHtml(slide.title)}" class="${fitClass}" onerror="this.src='https://placehold.co/800x450/1e293b/94a3b8?text=Image+Load+Error'">
-                            ${captionOverlay}
-                        </div>
-                    `;
-                } else if (slide.type === 'video') {
-                    contentHtml = `
-                        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 ${slide.transition || 'slide-fade'}">
-                            <video autoplay muted loop playsinline class="max-h-[75vh] max-w-[85vw] object-contain rounded-2xl shadow-2xl mb-4">
-                                <source src="${slide.mediaUrl}" type="video/mp4">
-                                Your browser does not support video playback.
-                            </video>
-                            <div class="text-center max-w-2xl">
-                                <h3 class="text-2xl font-bold text-white mb-1">${escapeHtml(slide.title)}</h3>
-                                <p class="text-sm text-slate-300">${escapeHtml(slide.content)}</p>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                screenArea.innerHTML = `
-                    <div class="absolute inset-0 ${slide.bgColor || 'bg-slate-900'} flex items-center justify-center">
-                        ${contentHtml}
+        function renderSlideList() {
+            const listEl = document.getElementById('slide-list');
+            document.getElementById('slide-count').textContent = appState.slides.length;
+            
+            if (appState.slides.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-12 text-slate-500">
+                        <i class="fa-solid fa-inbox text-3xl mb-2 opacity-50"></i>
+                        <p class="text-sm font-medium">No slides in queue</p>
                     </div>
                 `;
+                return;
+            }
 
-                const durationMs = (slide.duration || 10) * 1000;
-                let elapsed = 0;
-                const intervalMs = 100;
-                progressBar.style.width = '0%';
+            listEl.innerHTML = appState.slides.map((slide, index) => {
+                const isSelected = slide.id === currentSlideId;
+                let icon = 'fa-align-left text-indigo-400';
+                if (slide.type === 'image') icon = 'fa-image text-emerald-400';
+                if (slide.type === 'video') icon = 'fa-video text-rose-400';
 
-                this.tvProgressTimer = setInterval(() => {
-                    if (!this.isPaused) {
-                        elapsed += intervalMs;
-                        const pct = Math.min(100, (elapsed / durationMs) * 100);
-                        progressBar.style.width = pct + '%';
-                    }
-                }, intervalMs);
+                return `
+                    <div onclick="selectSlide('${slide.id}')" class="group relative bg-slate-950/60 hover:bg-slate-800/80 border ${isSelected ? 'border-indigo-500 shadow-md shadow-indigo-500/10' : 'border-slate-800'} rounded-xl p-3.5 cursor-pointer transition flex items-center gap-3">
+                        <div class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-mono text-slate-400 shrink-0">
+                            ${index + 1}
+                        </div>
+                        <div class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
+                            <i class="fa-solid ${icon} text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-sm font-semibold text-slate-200 truncate">${slide.title || 'Untitled Slide'}</h4>
+                            <p class="text-xs text-slate-400 capitalize">${slide.type} • ${slide.duration}s</p>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+                            <button onclick="event.stopPropagation(); moveSlide(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-white rounded disabled:opacity-30">
+                                <i class="fa-solid fa-arrow-up text-xs"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); moveSlide(${index}, 1)" ${index === appState.slides.length - 1 ? 'disabled' : ''} class="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-white rounded disabled:opacity-30">
+                                <i class="fa-solid fa-arrow-down text-xs"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteSlide('${slide.id}')" class="p-1.5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
 
-                this.tvTimer = setTimeout(() => {
-                    this.currentTvIndex = (this.currentTvIndex + 1) % this.slides.length;
-                    this.playCurrentTvSlide();
-                }, durationMs);
+        function selectSlide(id) {
+            currentSlideId = id;
+            renderSlideList();
+            renderEditor();
+        }
+
+        function addNewSlide() {
+            const newId = 'slide-' + Date.now();
+            const newSlide = {
+                id: newId,
+                type: 'text',
+                title: 'New Announcement Slide',
+                subtitle: 'Type your subtitle or description here...',
+                bgColor: '#1e1b4b',
+                textColor: '#ffffff',
+                duration: 8,
+                transition: 'fade'
+            };
+            appState.slides.push(newSlide);
+            saveToCloud();
+            selectSlide(newId);
+            showToast('Slide added successfully');
+        }
+
+        function deleteSlide(id) {
+            if (appState.slides.length <= 1) {
+                showToast('You must keep at least one slide in the queue.', 'error');
+                return;
+            }
+            appState.slides = appState.slides.filter(s => s.id !== id);
+            if (currentSlideId === id) {
+                currentSlideId = appState.slides[0].id;
+            }
+            saveToCloud();
+            renderSlideList();
+            if (currentSlideId) selectSlide(currentSlideId);
+            showToast('Slide deleted');
+        }
+
+        function moveSlide(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= appState.slides.length) return;
+            const temp = appState.slides[index];
+            appState.slides[index] = appState.slides[newIndex];
+            appState.slides[newIndex] = temp;
+            saveToCloud();
+            renderSlideList();
+        }
+
+        function renderEditor() {
+            const container = document.getElementById('editor-container');
+            const slide = appState.slides.find(s => s.id === currentSlideId);
+            if (!slide) {
+                container.innerHTML = `<div class="text-center text-slate-500 py-20">Select a slide to edit</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-xl">
+                    <div class="flex items-center justify-between pb-6 mb-6 border-b border-slate-800">
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Edit Slide Properties</h3>
+                            <p class="text-xs text-slate-400">Configure visual layout, duration and content</p>
+                        </div>
+                        <span class="text-xs text-slate-400 font-mono uppercase bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">${slide.type} Slide</span>
+                    </div>
+
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-2">Slide Type</label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="updateSlideType('text')" class="py-2.5 px-4 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition ${slide.type === 'text' ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}">
+                                    <i class="fa-solid fa-align-left"></i> Text Card
+                                </button>
+                                <button onclick="updateSlideType('image')" class="py-2.5 px-4 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition ${slide.type === 'image' ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}">
+                                    <i class="fa-solid fa-image"></i> Image Slide
+                                </button>
+                                <button onclick="updateSlideType('video')" class="py-2.5 px-4 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition ${slide.type === 'video' ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30' : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'}">
+                                    <i class="fa-solid fa-video"></i> Video Loop
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1.5">Main Headline / Title</label>
+                            <input type="text" value="${escapeHtml(slide.title || '')}" oninput="updateSlideField('title', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition">
+                        </div>
+
+                        ${slide.type === 'text' ? `
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1.5">Subtitle / Body Text</label>
+                                <textarea rows="3" oninput="updateSlideField('subtitle', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition">${escapeHtml(slide.subtitle || '')}</textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Background Color</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="color" value="${slide.bgColor || '#0f172a'}" onchange="updateSlideField('bgColor', this.value)" class="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer p-1">
+                                        <input type="text" value="${slide.bgColor || '#0f172a'}" oninput="updateSlideField('bgColor', this.value)" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-sm font-mono">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Text Color</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="color" value="${slide.textColor || '#ffffff'}" onchange="updateSlideField('textColor', this.value)" class="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer p-1">
+                                        <input type="text" value="${slide.textColor || '#ffffff'}" oninput="updateSlideField('textColor', this.value)" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 text-sm font-mono">
+                                    </div>
+                                </div>
+                            </div>
+                        ` : `
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1.5">${slide.type === 'image' ? 'Image URL or Upload' : 'Video URL (.mp4)'}</label>
+                                <div class="flex gap-2 mb-2">
+                                    <input type="text" value="${escapeHtml(slide.url || '')}" oninput="updateSlideField('url', this.value)" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition" placeholder="https://example.com/media.jpg">
+                                    <label class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl cursor-pointer border border-slate-700 transition flex items-center gap-2 shrink-0">
+                                        <i class="fa-solid fa-upload"></i> Local File
+                                        <input type="file" accept="${slide.type === 'image' ? 'image/*' : 'video/*'}" onchange="handleFileUpload(event, '${slide.id}')" class="hidden">
+                                    </label>
+                                </div>
+                            </div>
+                            ${slide.type === 'image' ? `
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-300 mb-1.5">Image Fit Mode</label>
+                                    <select onchange="updateSlideField('fit', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition">
+                                        <option value="cover" ${slide.fit === 'cover' ? 'selected' : ''}>Cover (Full Screen Fill)</option>
+                                        <option value="contain" ${slide.fit === 'contain' ? 'selected' : ''}>Contain (Fit Inside)</option>
+                                    </select>
+                                </div>
+                            ` : ''}
+                        `}
+
+                        <div class="grid grid-cols-2 gap-4 pt-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1.5">Duration (Seconds)</label>
+                                <input type="number" min="3" max="120" value="${slide.duration || 8}" onchange="updateSlideField('duration', parseInt(this.value) || 5)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1.5">Transition Effect</label>
+                                <select onchange="updateSlideField('transition', this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 text-sm focus:outline-none focus:border-indigo-500 transition">
+                                    <option value="fade" ${slide.transition === 'fade' ? 'selected' : ''}>Fade In</option>
+                                    <option value="slide" ${slide.transition === 'slide' ? 'selected' : ''}>Slide In Right</option>
+                                    <option value="zoom" ${slide.transition === 'zoom' ? 'selected' : ''}>Zoom In</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateSlideType(type) {
+            const slide = appState.slides.find(s => s.id === currentSlideId);
+            if (!slide) return;
+            slide.type = type;
+            if (type === 'text') {
+                slide.bgColor = slide.bgColor || '#0f172a';
+                slide.textColor = slide.textColor || '#ffffff';
+                delete slide.url;
+                delete slide.fit;
+            } else if (type === 'image') {
+                slide.url = slide.url || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80';
+                slide.fit = 'cover';
+                delete slide.bgColor;
+                delete slide.textColor;
+                delete slide.subtitle;
+            } else if (type === 'video') {
+                slide.url = slide.url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+                delete slide.bgColor;
+                delete slide.textColor;
+                delete slide.subtitle;
+                delete slide.fit;
+            }
+            saveToCloud();
+            renderSlideList();
+            renderEditor();
+        }
+
+        function updateSlideField(field, value) {
+            const slide = appState.slides.find(s => s.id === currentSlideId);
+            if (!slide) return;
+            slide[field] = value;
+            saveToCloud();
+            renderSlideList();
+        }
+
+        function handleFileUpload(event, slideId) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const slide = appState.slides.find(s => s.id === slideId);
+                if (slide) {
+                    slide.url = e.target.result;
+                    saveToCloud();
+                    renderEditor();
+                    showToast('Media file loaded successfully');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function startPresentation() {
+            if (appState.slides.length === 0) {
+                showToast('Add at least one slide to display presentation.', 'error');
+                return;
+            }
+
+            const tvDisplay = document.getElementById('tv-display');
+            tvDisplay.classList.remove('hidden');
+            currentSlideIndex = 0;
+            isPaused = false;
+
+            const tickerBar = document.getElementById('tv-ticker-bar');
+            if (appState.ticker && appState.ticker.enabled && appState.ticker.message) {
+                tickerBar.classList.remove('hidden');
+                document.getElementById('ticker-text-1').textContent = appState.ticker.message;
+                document.getElementById('ticker-text-2').textContent = appState.ticker.message;
+            } else {
+                tickerBar.classList.add('hidden');
+            }
+
+            renderTVCurrentSlide();
+            document.addEventListener('mousemove', handleTVMouseMove);
+        }
+
+        function stopPresentation() {
+            if (presentationTimer) clearTimeout(presentationTimer);
+            document.getElementById('tv-display').classList.add('hidden');
+            document.removeEventListener('mousemove', handleTVMouseMove);
+        }
+
+        function handleTVMouseMove() {
+            const hud = document.getElementById('tv-hud');
+            hud.classList.remove('opacity-0');
+            if (hudTimeout) clearTimeout(hudTimeout);
+            hudTimeout = setTimeout(() => {
+                if (!isPaused) hud.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        function togglePausePresentation() {
+            isPaused = !isPaused;
+            const pauseIcon = document.getElementById('tv-pause-icon');
+            const pauseText = document.getElementById('tv-pause-text');
+            if (isPaused) {
+                if (presentationTimer) clearTimeout(presentationTimer);
+                pauseIcon.className = "fa-solid fa-play";
+                pauseText.textContent = "Resume";
+                document.getElementById('tv-hud').classList.remove('opacity-0');
+            } else {
+                pauseIcon.className = "fa-solid fa-pause";
+                pauseText.textContent = "Pause";
+                scheduleNextSlide();
             }
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        function scheduleNextSlide() {
+            if (isPaused) return;
+            const slide = appState.slides[currentSlideIndex];
+            const duration = (slide.duration || 8) * 1000;
+
+            if (presentationTimer) clearTimeout(presentationTimer);
+            presentationTimer = setTimeout(() => {
+                currentSlideIndex = (currentSlideIndex + 1) % appState.slides.length;
+                renderTVCurrentSlide();
+            }, duration);
         }
 
-        const appState = new RollingSignageApp();
+        function renderTVCurrentSlide() {
+            const slide = appState.slides[currentSlideIndex];
+            const viewport = document.getElementById('tv-viewport');
+            document.getElementById('tv-counter').textContent = `Slide ${currentSlideIndex + 1} of ${appState.slides.length}`;
+
+            let animClass = 'animate-fade';
+            if (slide.transition === 'slide') animClass = 'animate-slide';
+            if (slide.transition === 'zoom') animClass = 'animate-zoom';
+
+            let contentHTML = '';
+            if (slide.type === 'text') {
+                contentHTML = `
+                    <div class="w-full h-full flex flex-col items-center justify-center p-12 text-center ${animClass}" style="background-color: ${slide.bgColor || '#0f172a'}; color: ${slide.textColor || '#ffffff'};">
+                        <h2 class="text-4xl md:text-7xl font-bold tracking-tight mb-6 max-w-5xl leading-tight">${escapeHtml(slide.title)}</h2>
+                        ${slide.subtitle ? `<p class="text-xl md:text-3xl font-light opacity-90 max-w-3xl leading-relaxed">${escapeHtml(slide.subtitle)}</p>` : ''}
+                    </div>
+                `;
+            } else if (slide.type === 'image') {
+                contentHTML = `
+                    <div class="w-full h-full relative bg-black flex items-center justify-center ${animClass}">
+                        <img src="${escapeHtml(slide.url)}" class="w-full h-full object-${slide.fit || 'cover'}" alt="Slide Image">
+                        <div class="absolute bottom-16 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-10 text-center">
+                            <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight">${escapeHtml(slide.title)}</h2>
+                        </div>
+                    </div>
+                `;
+            } else if (slide.type === 'video') {
+                contentHTML = `
+                    <div class="w-full h-full relative bg-black flex items-center justify-center ${animClass}">
+                        <video src="${escapeHtml(slide.url)}" autoplay muted loop playsinline class="w-full h-full object-cover"></video>
+                        <div class="absolute bottom-16 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-10 text-center">
+                            <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight">${escapeHtml(slide.title)}</h2>
+                        </div>
+                    </div>
+                `;
+            }
+
+            viewport.innerHTML = contentHTML;
+            scheduleNextSlide();
+        }
+
+        function openTickerModal() {
+            document.getElementById('ticker-enabled').checked = appState.ticker ? appState.ticker.enabled : false;
+            document.getElementById('ticker-message').value = appState.ticker ? appState.ticker.message : '';
+            document.getElementById('ticker-modal').classList.remove('hidden');
+        }
+
+        function closeTickerModal() {
+            document.getElementById('ticker-modal').classList.add('hidden');
+        }
+
+        function saveTickerSettings() {
+            appState.ticker = {
+                enabled: document.getElementById('ticker-enabled').checked,
+                message: document.getElementById('ticker-message').value
+            };
+            saveToCloud();
+            closeTickerModal();
+            showToast('Ticker settings updated');
+        }
+
+        function exportConfig() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "signage_config_" + Date.now() + ".json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Configuration exported successfully');
+        }
+
+        function importConfig(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && parsed.slides) {
+                        appState = parsed;
+                        saveToCloud();
+                        renderSlideList();
+                        if (appState.slides.length > 0) selectSlide(appState.slides[0].id);
+                        showToast('Configuration imported successfully');
+                    }
+                } catch (err) {
+                    showToast('Error parsing JSON configuration file.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", '&#039;');
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msgEl = document.getElementById('toast-msg');
+
+            msgEl.textContent = msg;
+            if (type === 'error') {
+                icon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
+            } else {
+                icon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            }
+            toast.className = "fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-3";
+
+            setTimeout(() => {
+                toast.className = "fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-white px-5 py-3 rounded-2xl shadow-2xl z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3";
+            }, 3000);
+        }
     </script>
 </body>
 </html>
