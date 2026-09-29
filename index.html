@@ -5,39 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rolling Signage TV Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
         
+        /* Fallbacks for older TV browsers (LG webOS, Tizen) which lack backdrop-filter support */
+        .tv-safe-backdrop {
+            background-color: rgba(15, 23, 42, 0.95) !important;
+        }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes zoomIn {
-            from { transform: scale(1.1); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         @keyframes ticker {
             0% { transform: translate3d(0, 0, 0); }
             100% { transform: translate3d(-50%, 0, 0); }
         }
 
-        .animate-fade { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-slide { animation: slideInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-zoom { animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade { animation: fadeIn 0.6s ease-in-out forwards; }
         .animate-ticker { animation: ticker 30s linear infinite; }
-        .animate-ticker:hover { animation-play-state: paused; }
-
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
+        
+        /* Ensure canvas and viewport fill correctly on fixed displays */
+        #tv-display {
+            background-color: #000000 !important;
+        }
     </style>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
@@ -134,23 +128,23 @@
         <div id="tv-viewport" class="absolute inset-0 flex items-center justify-center overflow-hidden"></div>
 
         <!-- TV HUD Controls on Mouse Move -->
-        <div id="tv-hud" class="absolute top-0 inset-x-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 via-black/40 to-transparent opacity-0 transition-opacity duration-300 z-30">
-            <div class="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 text-white">
+        <div id="tv-hud" class="absolute top-0 inset-x-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent opacity-0 transition-opacity duration-300 z-30">
+            <div class="flex items-center gap-3 bg-slate-900 tv-safe-backdrop px-4 py-2 rounded-xl border border-white/10 text-white">
                 <i class="fa-solid fa-tv text-indigo-400"></i>
                 <span id="tv-counter" class="text-sm font-semibold tracking-wide">Slide 1 of 5</span>
             </div>
             <div class="flex items-center gap-3">
-                <button onclick="togglePausePresentation()" id="tv-pause-btn" class="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl text-sm font-medium transition border border-white/10 flex items-center gap-2">
+                <button onclick="togglePausePresentation()" id="tv-pause-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 tv-safe-backdrop text-white rounded-xl text-sm font-medium transition border border-white/10 flex items-center gap-2">
                     <i class="fa-solid fa-pause" id="tv-pause-icon"></i> <span id="tv-pause-text">Pause</span>
                 </button>
-                <button onclick="stopPresentation()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 backdrop-blur-md text-red-300 rounded-xl text-sm font-medium transition border border-red-500/20 flex items-center gap-2">
+                <button onclick="stopPresentation()" class="px-4 py-2 bg-red-900/60 hover:bg-red-900 text-red-200 rounded-xl text-sm font-medium transition border border-red-500/20 flex items-center gap-2">
                     <i class="fa-solid fa-xmark"></i> Exit Display
                 </button>
             </div>
         </div>
 
         <!-- Rolling Ticker Bar -->
-        <div id="tv-ticker-bar" class="absolute bottom-0 inset-x-0 bg-indigo-600 text-white font-semibold py-3 overflow-hidden shadow-2xl z-30 hidden border-t border-indigo-400/30">
+        <div id="tv-ticker-bar" class="absolute bottom-0 inset-x-0 bg-indigo-900 text-white font-semibold py-3 overflow-hidden shadow-2xl z-30 hidden border-t border-indigo-400/30">
             <div class="flex whitespace-nowrap animate-ticker">
                 <span id="ticker-text-1" class="text-lg px-8 tracking-wide"></span>
                 <span class="text-indigo-300 px-4">•</span>
@@ -161,7 +155,7 @@
     </div>
 
     <!-- Ticker Settings Modal -->
-    <div id="ticker-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="ticker-modal" class="fixed inset-0 bg-slate-950/80 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -664,13 +658,17 @@
             }
 
             renderTVCurrentSlide();
+            
+            // Support both mouse movement and click/touch events for TV remotes
             document.addEventListener('mousemove', handleTVMouseMove);
+            document.addEventListener('click', handleTVMouseMove);
         }
 
         function stopPresentation() {
             if (presentationTimer) clearTimeout(presentationTimer);
             document.getElementById('tv-display').classList.add('hidden');
             document.removeEventListener('mousemove', handleTVMouseMove);
+            document.removeEventListener('click', handleTVMouseMove);
         }
 
         function handleTVMouseMove() {
@@ -679,7 +677,7 @@
             if (hudTimeout) clearTimeout(hudTimeout);
             hudTimeout = setTimeout(() => {
                 if (!isPaused) hud.classList.add('opacity-0');
-            }, 3000);
+            }, 4000);
         }
 
         function togglePausePresentation() {
@@ -715,32 +713,28 @@
             const viewport = document.getElementById('tv-viewport');
             document.getElementById('tv-counter').textContent = `Slide ${currentSlideIndex + 1} of ${appState.slides.length}`;
 
-            let animClass = 'animate-fade';
-            if (slide.transition === 'slide') animClass = 'animate-slide';
-            if (slide.transition === 'zoom') animClass = 'animate-zoom';
-
             let contentHTML = '';
             if (slide.type === 'text') {
                 contentHTML = `
-                    <div class="w-full h-full flex flex-col items-center justify-center p-12 text-center ${animClass}" style="background-color: ${slide.bgColor || '#0f172a'}; color: ${slide.textColor || '#ffffff'};">
+                    <div class="w-full h-full flex flex-col items-center justify-center p-12 text-center animate-fade" style="background-color: ${slide.bgColor || '#0f172a'}; color: ${slide.textColor || '#ffffff'};">
                         <h2 class="text-4xl md:text-7xl font-bold tracking-tight mb-6 max-w-5xl leading-tight">${escapeHtml(slide.title)}</h2>
                         ${slide.subtitle ? `<p class="text-xl md:text-3xl font-light opacity-90 max-w-3xl leading-relaxed">${escapeHtml(slide.subtitle)}</p>` : ''}
                     </div>
                 `;
             } else if (slide.type === 'image') {
                 contentHTML = `
-                    <div class="w-full h-full relative bg-black flex items-center justify-center ${animClass}">
+                    <div class="w-full h-full relative bg-black flex items-center justify-center animate-fade">
                         <img src="${escapeHtml(slide.url)}" class="w-full h-full object-${slide.fit || 'cover'}" alt="Slide Image">
-                        <div class="absolute bottom-16 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-10 text-center">
+                        <div class="absolute bottom-16 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-10 text-center">
                             <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight">${escapeHtml(slide.title)}</h2>
                         </div>
                     </div>
                 `;
             } else if (slide.type === 'video') {
                 contentHTML = `
-                    <div class="w-full h-full relative bg-black flex items-center justify-center ${animClass}">
+                    <div class="w-full h-full relative bg-black flex items-center justify-center animate-fade">
                         <video src="${escapeHtml(slide.url)}" autoplay muted loop playsinline class="w-full h-full object-cover"></video>
-                        <div class="absolute bottom-16 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-10 text-center">
+                        <div class="absolute bottom-16 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-10 text-center">
                             <h2 class="text-3xl md:text-5xl font-bold text-white tracking-tight">${escapeHtml(slide.title)}</h2>
                         </div>
                     </div>
