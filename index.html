@@ -176,9 +176,100 @@
                 this.currentSlideIndex = 0;
                 this.slideTimer = null;
                 this.isTVMode = false;
+                this.syncTimeout = null;
 
+                this.initApp();
+            }
+
+            async initApp() {
+                await this.pullFromCloud();
                 this.initListeners();
                 this.renderAdmin();
+                
+                // Periodic cloud sync push every 10 seconds if changes happen
+                setInterval(() => this.pushToCloud(), 10000);
+            }
+
+            async pullFromCloud() {
+                const statusEl = document.getElementById('sync-status');
+                try {
+                    const response = await fetch(`${this.cloudBinUrl}/latest`, {
+                        method: 'GET',
+                        headers: { 'X-Master-Key': this.cloudApiKey }
+                    });
+                    if (response.ok) {
+                        const json = await response.json();
+                        if (json && json.record) {
+                            const cloudData = json.record;
+                            if (cloudData.ticker) this.state.ticker = cloudData.ticker;
+                            if (cloudData.settings) this.state.settings = cloudData.settings;
+                            if (Array.isArray(cloudData.slides)) {
+                                // Map cloud slides. Note: blob URLs are local per browser session, 
+                                // so text slides and durations restore automatically.
+                                this.state.slides = cloudData.slides.map(cs => ({
+                                    ...cs,
+                                    id: cs.id || 'slide_' + Math.random().toString(36).substring(2),
+                                    url: cs.url || ''
+                                }));
+                            }
+                        }
+                        if (statusEl) {
+                            statusEl.innerText = "Cloud Sync Active";
+                            statusEl.className = "badge-sync badge-synced";
+                        }
+                    }
+                } catch (e) {
+                    console.error("Cloud pull error:", e);
+                    if (statusEl) {
+                        statusEl.innerText = "Offline Mode";
+                        statusEl.className = "badge-sync";
+                    }
+                }
+            }
+
+            async pushToCloud() {
+                const statusEl = document.getElementById('sync-status');
+                try {
+                    const payload = {
+                        ticker: this.state.ticker,
+                        settings: this.state.settings,
+                        slides: this.state.slides.map(s => ({
+                            id: s.id,
+                            type: s.type,
+                            name: s.name,
+                            title: s.title,
+                            content: s.content,
+                            fit: s.fit || 'contain',
+                            duration: s.duration || 10,
+                            url: s.type === 'text' ? '' : s.url
+                        }))
+                    };
+
+                    const response = await fetch(this.cloudBinUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': this.cloudApiKey
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok && statusEl) {
+                        statusEl.innerText = "Cloud Sync Active";
+                        statusEl.className = "badge-sync badge-synced";
+                    }
+                } catch (e) {
+                    console.error("Cloud push error:", e);
+                    if (statusEl) {
+                        statusEl.innerText = "Sync Pending...";
+                        statusEl.className = "badge-sync";
+                    }
+                }
+            }
+
+            triggerCloudSync() {
+                clearTimeout(this.syncTimeout);
+                this.syncTimeout = setTimeout(() => this.pushToCloud(), 1000);
             }
 
             handleFiles(files) {
@@ -196,6 +287,7 @@
                     });
                 });
                 this.renderAdmin();
+                this.triggerCloudSync();
             }
 
             addTextSlide() {
@@ -208,17 +300,20 @@
                     duration: this.state.settings.defaultDuration
                 });
                 this.renderAdmin();
+                this.triggerCloudSync();
             }
 
             deleteSlide(id) {
                 this.state.slides = this.state.slides.filter(s => s.id !== id);
                 this.renderAdmin();
+                this.triggerCloudSync();
             }
 
             updateSlideField(id, field, val) {
                 const slide = this.state.slides.find(s => s.id === id);
                 if (slide) {
                     slide[field] = val;
+                    this.triggerCloudSync();
                 }
             }
 
@@ -248,15 +343,19 @@
 
                 document.getElementById('ticker-text')?.addEventListener('input', (e) => {
                     this.state.ticker.text = e.target.value;
+                    this.triggerCloudSync();
                 });
                 document.getElementById('ticker-enabled')?.addEventListener('change', (e) => {
                     this.state.ticker.enabled = e.target.checked;
+                    this.triggerCloudSync();
                 });
                 document.getElementById('global-duration')?.addEventListener('change', (e) => {
                     this.state.settings.defaultDuration = parseInt(e.target.value) || 10;
+                    this.triggerCloudSync();
                 });
                 document.getElementById('global-transition')?.addEventListener('change', (e) => {
                     this.state.settings.transition = e.target.value;
+                    this.triggerCloudSync();
                 });
             }
 
@@ -289,13 +388,13 @@
                         <div style="display: flex; align-items: center; gap: 0.75rem; width: auto;">
                             <span style="font-size: 0.75rem; font-family: monospace; color: #6b7280;">#${idx + 1}</span>
                             <div style="width: 4rem; height: 3rem; background-color: #030712; border-radius: 0.5rem; border: 1px solid #1f2937; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                ${slide.type === 'image' ? `<img src="${slide.url}" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                                ${slide.type === 'image' && slide.url ? `<img src="${slide.url}" style="width: 100%; height: 100%; object-fit: cover;">` : 
                                   slide.type === 'video' ? `<span style="font-size: 0.75rem; color: #60a5fa; font-weight: bold;">MP4</span>` : 
                                   `<span style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">TXT</span>`}
                             </div>
                             <div style="min-width: 0; flex: 1;">
                                 <p style="font-size: 0.875rem; font-weight: 500; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${slide.name || slide.title || 'Slide ' + (idx + 1)}</p>
-                                <p style="font-size: 0.75rem; color: #9ca3af; text-transform: capitalize;">${slide.type} slide</p>
+                                <p style="font-size: 0.75rem; color: #9ca3af; text-transform: capitalize;">${slide.type} slide ${!slide.url && slide.type !== 'text' ? '(Needs file on this device)' : ''}</p>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.75rem; width: auto; justify-content: flex-end;">
@@ -380,9 +479,17 @@
                 const fitStyle = slide.fit === 'cover' ? 'width: 100%; height: 100%; object-fit: cover;' : 'max-width: 100%; max-height: 100%; object-fit: contain;';
 
                 if (slide.type === 'image') {
-                    contentHtml = `<img src="${slide.url}" style="${fitStyle}">`;
+                    if (slide.url) {
+                        contentHtml = `<img src="${slide.url}" style="${fitStyle}">`;
+                    } else {
+                        contentHtml = `<div style="color: #9ca3af; text-align: center;"><p style="font-size: 1.5rem;">Missing local file: ${slide.name}</p><p style="font-size: 1rem; margin-top: 0.5rem;">Please drop this image onto the manager on this device.</p></div>`;
+                    }
                 } else if (slide.type === 'video') {
-                    contentHtml = `<video src="${slide.url}" style="${fitStyle}" autoplay muted playsinline></video>`;
+                    if (slide.url) {
+                        contentHtml = `<video src="${slide.url}" style="${fitStyle}" autoplay muted playsinline></video>`;
+                    } else {
+                        contentHtml = `<div style="color: #9ca3af; text-align: center;"><p style="font-size: 1.5rem;">Missing local video: ${slide.name}</p></div>`;
+                    }
                 } else if (slide.type === 'text') {
                     contentHtml = `
                         <div style="max-width: 56rem; padding: 3rem; text-align: center;">
