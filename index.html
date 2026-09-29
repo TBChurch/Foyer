@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling Signage TV Web App - Cloud Sync & Transitions</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Rolling Signage TV Studio - Cloud Sync & Transitions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -65,8 +64,18 @@
 </head>
 <body class="h-full bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden">
 
-    <!-- App Container -->
     <div id="app" class="min-h-full flex flex-col">
+
+        <!-- Custom Notification Modal (No alert/confirm used) -->
+        <div id="custom-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                <h3 id="modal-title" class="text-lg font-bold text-white mb-2">Notice</h3>
+                <p id="modal-message" class="text-sm text-slate-300 mb-6"></p>
+                <div id="modal-buttons" class="flex justify-end gap-3">
+                    <button id="modal-ok-btn" onclick="app.closeModal()" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition">OK</button>
+                </div>
+            </div>
+        </div>
 
         <!-- ADMIN DASHBOARD VIEW -->
         <div id="admin-view" class="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
@@ -79,8 +88,8 @@
                     <p class="text-sm text-slate-400 mt-1">Manage slides, transitions, cloud sync, and stream to your TV.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <span id="sync-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        Cloud Sync Active (Ready)
+                    <span id="sync-status" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        🟢 Cloud Connected
                     </span>
                     <button onclick="app.launchTVMode()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
                         <span>▶ Launch TV Display</span>
@@ -91,7 +100,6 @@
             <!-- Main Dashboard Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 flex-1">
                 
-                <!-- Left 2 Cols: Slide List & Dropzone -->
                 <div class="lg:col-span-2 flex flex-col gap-6">
                     
                     <!-- Drag & Drop Uploader Box -->
@@ -131,7 +139,6 @@
                     </div>
                 </div>
 
-                <!-- Right Col: Ticker & Global Settings -->
                 <div class="space-y-6">
                     <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
                         <h3 class="text-md font-semibold text-slate-200 mb-4 pb-2 border-b border-slate-800">Ticker Bar Settings</h3>
@@ -170,10 +177,10 @@
             </div>
         </div>
 
-        <!-- TV PRESENTATION VIEW (Fullscreen Player) -->
-        <div id="tv-display" class="fixed inset-0 z-50 flex flex-col hidden select-none" style="background-color: #000000 !important;">
-            <!-- Fullscreen Media Stage (Pure Black Background) -->
-            <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center" style="background-color: #000000 !important;">
+        <!-- TV PRESENTATION VIEW (Fullscreen Player with Pure Pitch-Black Stage) -->
+        <div id="tv-display" class="fixed inset-0 z-50 flex flex-col hidden select-none bg-black">
+            <!-- Fullscreen Media Stage (Pure Black Background #000000) -->
+            <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
                 <!-- Slides render here -->
             </div>
 
@@ -193,7 +200,6 @@
 
     </div>
 
-    <!-- Application Script -->
     <script>
         class RollingSignageApp {
             constructor() {
@@ -209,7 +215,7 @@
                     }
                 };
                 
-                // Hardcoded JSONBin Credentials
+                // Baked-in JSONBin Credentials
                 this.cloudBinUrl = "https://api.jsonbin.io/v3/b/6abb9d43ac6210605a018507";
                 this.cloudApiKey = "$2a$10$Lw57fEK4TwqdOnZxAFHesuTWoC88So5ffCXBB55ccpto9Kl/Eksmu";
                 
@@ -223,8 +229,26 @@
 
                 if (this.cloudBinUrl) {
                     this.pullFromCloud(true);
-                    this.pollInterval = setInterval(() => this.pullFromCloud(true), 10000);
+                    this.pollInterval = setInterval(() => this.pullFromCloud(true), 15000);
                 }
+            }
+
+            showAlert(title, message) {
+                const modal = document.getElementById('custom-modal');
+                const titleEl = document.getElementById('modal-title');
+                const msgEl = document.getElementById('modal-message');
+                if (modal && titleEl && msgEl) {
+                    titleEl.innerText = title;
+                    msgEl.innerText = message;
+                    modal.classList.remove('hidden');
+                } else {
+                    console.log(title + ": " + message);
+                }
+            }
+
+            closeModal() {
+                const modal = document.getElementById('custom-modal');
+                if (modal) modal.classList.add('hidden');
             }
 
             async pushToCloud() {
@@ -241,12 +265,17 @@
                     if (response.ok) {
                         const statusEl = document.getElementById('sync-status');
                         if (statusEl) {
-                            statusEl.className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                            statusEl.innerText = "Cloud Sync Active (Synced)";
+                            statusEl.className = "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                            statusEl.innerText = "🟢 Cloud Connected";
                         }
                     }
                 } catch (e) {
                     console.warn("Cloud push deferred:", e);
+                    const statusEl = document.getElementById('sync-status');
+                    if (statusEl) {
+                        statusEl.className = "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                        statusEl.innerText = "⚠️ Offline / Local Mode";
+                    }
                 }
             }
 
@@ -261,14 +290,11 @@
                         const data = await response.json();
                         const remoteState = data.record || data;
                         if (remoteState && remoteState.slides) {
+                            // Only update if remote has valid structure
                             this.state = remoteState;
+                            this.saveLocal();
                             this.renderAdmin();
                             if (this.isTVMode) this.renderTVFrame();
-                            const statusEl = document.getElementById('sync-status');
-                            if (statusEl) {
-                                statusEl.className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                                statusEl.innerText = "Cloud Sync Active";
-                            }
                         }
                     }
                 } catch (e) {
@@ -288,7 +314,10 @@
                 try {
                     const saved = localStorage.getItem('rolling_signage_state');
                     if (saved) {
-                        this.state = JSON.parse(saved);
+                        const parsed = JSON.parse(saved);
+                        if (parsed && parsed.slides) {
+                            this.state = parsed;
+                        }
                     }
                 } catch (e) {
                     console.warn("Could not load local state:", e);
@@ -361,8 +390,8 @@
                 this.state.slides.push({
                     id: 'slide_' + Math.random().toString(36).substring(2),
                     type: 'text',
-                    title: 'Welcome!',
-                    content: 'Add your announcements and custom text here.',
+                    title: 'New Announcement',
+                    content: 'Enter your custom announcement text here for the congregation.',
                     fit: 'contain',
                     duration: this.state.settings.defaultDuration
                 });
@@ -377,6 +406,14 @@
             }
 
             updateSlideField(id, field, val) {
+                const slide = this.state.slides.find(s => s.id === id);
+                if (slide) {
+                    slide[field] = val;
+                    this.saveState();
+                }
+            }
+
+            updateSlideTextContent(id, field, val) {
                 const slide = this.state.slides.find(s => s.id === id);
                 if (slide) {
                     slide[field] = val;
@@ -409,13 +446,17 @@
                 if (countEl) countEl.innerText = this.state.slides.length;
                 
                 const tickerTextEl = document.getElementById('ticker-text');
-                if (tickerTextEl) tickerTextEl.value = this.state.ticker.text;
+                if (tickerTextEl && document.activeElement !== tickerTextEl) {
+                    tickerTextEl.value = this.state.ticker.text;
+                }
 
                 const tickerEnabledEl = document.getElementById('ticker-enabled');
                 if (tickerEnabledEl) tickerEnabledEl.checked = this.state.ticker.enabled;
 
                 const globalDurationEl = document.getElementById('global-duration');
-                if (globalDurationEl) globalDurationEl.value = this.state.settings.defaultDuration;
+                if (globalDurationEl && document.activeElement !== globalDurationEl) {
+                    globalDurationEl.value = this.state.settings.defaultDuration;
+                }
 
                 const globalTransitionEl = document.getElementById('global-transition');
                 if (globalTransitionEl) globalTransitionEl.value = this.state.settings.transition || 'fade';
@@ -429,35 +470,43 @@
                 }
 
                 list.innerHTML = this.state.slides.map((slide, idx) => `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
-                        <div class="flex items-center gap-3 w-full sm:w-auto">
-                            <span class="text-xs font-mono text-slate-500">#${idx + 1}</span>
-                            <div class="w-16 h-12 bg-slate-950 rounded-lg border border-slate-800 overflow-hidden flex items-center justify-center shrink-0">
-                                ${slide.type === 'image' ? `<img src="${slide.url}" class="w-full h-full object-cover">` : 
-                                  slide.type === 'video' ? `<span class="text-xs text-brand-400 font-bold">MP4</span>` : 
-                                  `<span class="text-xs text-amber-400 font-bold">TXT</span>`}
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-mono text-slate-500">#${idx + 1}</span>
+                                <div class="w-16 h-12 bg-slate-950 rounded-lg border border-slate-800 overflow-hidden flex items-center justify-center shrink-0">
+                                    ${slide.type === 'image' ? `<img src="${slide.url}" class="w-full h-full object-cover">` : 
+                                      slide.type === 'video' ? `<span class="text-xs text-brand-400 font-bold">MP4</span>` : 
+                                      `<span class="text-xs text-amber-400 font-bold">TXT</span>`}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-slate-200 truncate">${slide.name || slide.title || 'Slide ' + (idx + 1)}</p>
+                                    <p class="text-xs text-slate-400 capitalize">${slide.type} slide</p>
+                                </div>
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-slate-200 truncate">${slide.name || slide.title || 'Slide ' + (idx + 1)}</p>
-                                <p class="text-xs text-slate-400 capitalize">${slide.type} slide</p>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs text-slate-400">Secs:</span>
+                                    <input type="number" min="2" max="120" value="${slide.duration || 10}" onchange="app.updateSlideField('${slide.id}', 'duration', parseInt(this.value))" class="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs text-slate-400">Fit:</span>
+                                    <select onchange="app.updateSlideField('${slide.id}', 'fit', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
+                                        <option value="contain" ${slide.fit === 'contain' ? 'selected' : ''}>Contain</option>
+                                        <option value="cover" ${slide.fit === 'cover' ? 'selected' : ''}>Cover</option>
+                                    </select>
+                                </div>
+                                <button onclick="app.deleteSlide('${slide.id}')" class="text-slate-500 hover:text-red-400 p-1.5 transition">
+                                    🗑️
+                                </button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-xs text-slate-400">Secs:</span>
-                                <input type="number" min="2" max="120" value="${slide.duration || 10}" onchange="app.updateSlideField('${slide.id}', 'duration', parseInt(this.value))" class="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
+                        ${slide.type === 'text' ? `
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 pt-3 border-t border-slate-800/60">
+                                <input type="text" value="${slide.title || ''}" placeholder="Slide Title" oninput="app.updateSlideTextContent('${slide.id}', 'title', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+                                <input type="text" value="${slide.content || ''}" placeholder="Slide Content/Announcement" oninput="app.updateSlideTextContent('${slide.id}', 'content', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
                             </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-xs text-slate-400">Fit:</span>
-                                <select onchange="app.updateSlideField('${slide.id}', 'fit', this.value)" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
-                                    <option value="contain" ${slide.fit === 'contain' ? 'selected' : ''}>Contain</option>
-                                    <option value="cover" ${slide.fit === 'cover' ? 'selected' : ''}>Cover</option>
-                                </select>
-                            </div>
-                            <button onclick="app.deleteSlide('${slide.id}')" class="text-slate-500 hover:text-red-400 p-1.5 transition">
-                                🗑️
-                            </button>
-                        </div>
+                        ` : ''}
                     </div>
                 `).join('');
             }
@@ -483,10 +532,10 @@
                             this.state = parsed;
                             this.saveState();
                             this.renderAdmin();
-                            alert("Playlist imported successfully!");
+                            this.showAlert("Success", "Playlist imported successfully!");
                         }
                     } catch (err) {
-                        alert("Invalid JSON file format.");
+                        this.showAlert("Error", "Invalid JSON file format.");
                     }
                 };
                 reader.readAsText(file);
@@ -494,7 +543,7 @@
 
             launchTVMode() {
                 if (this.state.slides.length === 0) {
-                    alert("Please add at least one slide before launching TV mode.");
+                    this.showAlert("Notice", "Please add at least one slide before launching TV mode.");
                     return;
                 }
                 this.isTVMode = true;
@@ -569,12 +618,12 @@
                     activeClass = '';
                 }
 
-                stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass}" style="background-color: #000000 !important;">${contentHtml}</div>`;
+                stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass} bg-black">${contentHtml}</div>`;
                 
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         const inner = stage.firstElementChild;
-                        if (inner) inner.className = `w-full h-full flex items-center justify-center slide-transition ${activeClass}`;
+                        if (inner) inner.className = `w-full h-full flex items-center justify-center slide-transition ${activeClass} bg-black`;
                     });
                 });
 
