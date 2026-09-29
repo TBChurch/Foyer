@@ -1,196 +1,4 @@
-<!DOCTYPE html>
-<html lang="en" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling Signage TV Web App - Cloud Sync & Transitions</title>
-    <style>
-        /* Base Reset & Variables */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #030712; color: #f3f4f6; overflow-x: hidden; }
-
-        /* Animations */
-        @keyframes ticker {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
-        .animate-ticker {
-            display: inline-block;
-            white-space: nowrap;
-            animation: ticker 25s linear infinite;
-        }
-        .animate-ticker:hover { animation-play-state: paused; }
-
-        /* Slide Transition Effects */
-        .slide-transition {
-            transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
-        }
-        .effect-fade-in { opacity: 0; transform: scale(1); }
-        .effect-fade-active { opacity: 1; transform: scale(1); }
-        .effect-zoom-in { opacity: 0; transform: scale(0.92); }
-        .effect-zoom-active { opacity: 1; transform: scale(1); }
-        .effect-slide-in { opacity: 0; transform: translateX(50px); }
-        .effect-slide-active { opacity: 1; transform: translateX(0); }
-
-        /* UI Component Styles */
-        .app-container { min-height: 100%; display: flex; flex-direction: column; }
-        .admin-view { flex: 1; display: flex; flex-direction: column; max-width: 80rem; margin: 0 auto; width: 100%; padding: 1.5rem; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1.5rem; border-bottom: 1px solid #1f2937; gap: 1rem; flex-wrap: wrap; }
-        .badge-sync { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
-        .badge-synced { background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
-        .btn-primary { background-color: #059669; color: white; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; transition: background 0.2s; }
-        .btn-primary:hover { background-color: #047857; }
-        .btn-secondary { background-color: #1f2937; color: #e5e7eb; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; cursor: pointer; transition: background 0.2s; }
-        .btn-secondary:hover { background-color: #374151; }
-        
-        .dropzone { border: 2px dashed #374151; background-color: rgba(17, 24, 39, 0.5); border-radius: 1rem; padding: 1.5rem; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; }
-        .dropzone:hover { border-color: #3b82f6; background-color: #111827; }
-        
-        .card { background-color: rgba(17, 24, 39, 0.8); border: 1px solid #1f2937; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .input-dark { background-color: #030712; border: 1px solid #1f2937; border-radius: 0.75rem; padding: 0.625rem; font-size: 0.875rem; color: #f3f4f6; width: 100%; outline: none; }
-        .input-dark:focus { border-color: #3b82f6; }
-        
-        .grid-layout { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1.5rem; flex: 1; }
-        @media(min-width: 1024px) { .grid-layout { grid-template-columns: repeat(3, minmax(0, 1fr)); } .col-span-2 { grid-column: span 2 / span 2; } }
-
-        .slide-item { background-color: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-        
-        /* TV Display View */
-        #tv-display { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background-color: #000000 !important; user-select: none; }
-        .hidden { display: none !important; }
-        #tv-stage { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #000000 !important; }
-        #tv-ticker-bar { background-color: rgba(17, 24, 39, 0.9); color: #fde047; padding: 0.75rem 1rem; border-top: 1px solid #1f2937; font-size: 1.25rem; font-weight: 600; overflow: hidden; white-space: nowrap; }
-        #tv-controls { position: absolute; top: 1rem; right: 1rem; background-color: rgba(17, 24, 39, 0.9); border: 1px solid rgba(55, 65, 81, 0.5); border-radius: 0.75rem; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 1rem; transition: opacity 0.3s; opacity: 0; z-index: 50; }
-        #tv-display:hover #tv-controls { opacity: 1; }
-    </style>
-</head>
-<body>
-
-    <!-- App Container -->
-    <div class="app-container">
-
-        <!-- ADMIN DASHBOARD VIEW -->
-        <div id="admin-view" class="admin-view">
-            <!-- Header -->
-            <header class="header">
-                <div>
-                    <h1 style="font-size: 1.75rem; font-weight: bold; color: white; display: flex; align-items: center; gap: 0.5rem;">
-                        📺 Rolling Signage Manager
-                    </h1>
-                    <p style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.25rem;">Manage slides, transitions, cloud sync, and stream to your TV.</p>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <span id="sync-status" class="badge-sync badge-synced">
-                        Cloud Sync Active (Ready)
-                    </span>
-                    <button id="btn-launch-tv" class="btn-primary">
-                        <span>▶ Launch TV Display</span>
-                    </button>
-                </div>
-            </header>
-
-            <!-- Main Dashboard Grid -->
-            <div class="grid-layout">
-                
-                <!-- Left 2 Cols: Slide List & Dropzone -->
-                <div class="col-span-2" style="display: flex; flex-direction: column; gap: 1.5rem;">
-                    
-                    <!-- Drag & Drop Uploader Box -->
-                    <div id="dropzone" class="dropzone">
-                        <div style="width: 3rem; height: 3rem; border-radius: 9999px; background-color: #1f2937; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #60a5fa;">
-                            📄
-                        </div>
-                        <div>
-                            <p style="font-weight: 500; color: #e5e7eb;">Drag & drop image or video files here</p>
-                            <p style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem;">Supports PNG, JPG, GIF, MP4, WebM</p>
-                        </div>
-                        <input type="file" id="file-input" multiple accept="image/*,video/*" style="display: none;">
-                    </div>
-
-                    <!-- Slide Management List Header -->
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <h2 style="font-size: 1.125rem; font-weight: 600; color: #e5e7eb;">Playlist Slides (<span id="slide-count">0</span>)</h2>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button id="btn-add-text" class="btn-secondary">+ Add Text Slide</button>
-                            <button id="btn-export" class="btn-secondary">Export JSON</button>
-                            <label class="btn-secondary" style="cursor: pointer;">
-                                Import JSON
-                                <input type="file" id="import-json" accept=".json" style="display: none;">
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Slides Container -->
-                    <div id="slides-list" style="max-height: 500px; overflow-y: auto; padding-right: 0.5rem;">
-                        <div style="text-align: center; padding: 3rem 0; color: #6b7280; border: 1px solid #1f2937; border-radius: 0.75rem; background-color: rgba(17, 24, 39, 0.3);">
-                            No slides added yet. Drag & drop files above or add a text slide to get started!
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Col: Ticker & Global Settings -->
-                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                    <div class="card">
-                        <h3 style="font-size: 1rem; font-weight: 600; color: #e5e7eb; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1f2937;">Ticker Bar Settings</h3>
-                        <div style="display: flex; flex-direction: column; gap: 1rem;">
-                            <div>
-                                <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Ticker Message Text</label>
-                                <textarea id="ticker-text" rows="3" class="input-dark" placeholder="Enter bottom scrolling announcement..."></textarea>
-                            </div>
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 0.875rem; color: #d1d5db; font-weight: 500;">Show Ticker Bar</span>
-                                <input type="checkbox" id="ticker-enabled" style="width: 1rem; height: 1rem; accent-color: #3b82f6;">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h3 style="font-size: 1rem; font-weight: 600; color: #e5e7eb; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1f2937;">Global Playback Settings</h3>
-                        <div style="display: flex; flex-direction: column; gap: 1rem;">
-                            <div>
-                                <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Default Slide Duration (Seconds)</label>
-                                <input type="number" id="global-duration" min="2" max="120" value="10" class="input-dark">
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Transition Effect</label>
-                                <select id="global-transition" class="input-dark">
-                                    <option value="fade">Fade</option>
-                                    <option value="zoom">Zoom</option>
-                                    <option value="slide">Slide</option>
-                                    <option value="none">None (Instant)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- TV PRESENTATION VIEW (Fullscreen Player) -->
-        <div id="tv-display" class="hidden">
-            <!-- Fullscreen Media Stage (Pure Black Background) -->
-            <div id="tv-stage">
-                <!-- Slides render here -->
-            </div>
-
-            <!-- Optional Bottom Ticker Bar -->
-            <div id="tv-ticker-bar" class="hidden">
-                <div id="tv-ticker-content" class="animate-ticker"></div>
-            </div>
-
-            <!-- Floating Exit / Control Bar -->
-            <div id="tv-controls">
-                <span id="tv-status-indicator" style="font-size: 0.75rem; color: #34d399; font-family: monospace;">● TV DISPLAY ACTIVE</span>
-                <button id="btn-exit-tv" style="background-color: #dc2626; color: white; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 500; cursor: pointer;">
-                    Exit Display Mode
-                </button>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Application Script -->
+<!-- Application Script -->
     <script>
         class RollingSignageApp {
             constructor() {
@@ -258,17 +66,11 @@
                         const data = await response.json();
                         const remoteState = data.record || data;
                         if (remoteState && remoteState.slides) {
-                            this.state = {
-                                slides: remoteState.slides || [],
-                                ticker: {
-                                    text: (remoteState.ticker && remoteState.ticker.text) || "Welcome...",
-                                    enabled: remoteState.ticker ? remoteState.ticker.enabled : true
-                                },
-                                settings: {
-                                    defaultDuration: (remoteState.settings && remoteState.settings.defaultDuration) || 10,
-                                    transition: (remoteState.settings && remoteState.settings.transition) || "fade"
-                                }
-                            };
+                            // Only update if remote has slides to prevent overwriting active local drops
+                            this.state.slides = remoteState.slides || this.state.slides;
+                            if (remoteState.ticker) this.state.ticker = remoteState.ticker;
+                            if (remoteState.settings) this.state.settings = remoteState.settings;
+                            
                             this.renderAdmin();
                             if (this.isTVMode) this.renderTVFrame();
                             const statusEl = document.getElementById('sync-status');
@@ -287,7 +89,7 @@
                 try {
                     localStorage.setItem('rolling_signage_state', JSON.stringify(this.state));
                 } catch (e) {
-                    console.error("Local storage error:", e);
+                    console.warn("Local storage limit reached (images too large for localStorage). State kept in memory.", e);
                 }
             }
 
@@ -296,18 +98,10 @@
                     const saved = localStorage.getItem('rolling_signage_state');
                     if (saved) {
                         const parsed = JSON.parse(saved);
-                        if (parsed) {
-                            this.state = {
-                                slides: parsed.slides || [],
-                                ticker: {
-                                    text: (parsed.ticker && parsed.ticker.text) || this.state.ticker.text,
-                                    enabled: parsed.ticker ? parsed.ticker.enabled : this.state.ticker.enabled
-                                },
-                                settings: {
-                                    defaultDuration: (parsed.settings && parsed.settings.defaultDuration) || this.state.settings.defaultDuration,
-                                    transition: (parsed.settings && parsed.settings.transition) || this.state.settings.transition
-                                }
-                            };
+                        if (parsed && parsed.slides) {
+                            this.state.slides = parsed.slides || [];
+                            if (parsed.ticker) this.state.ticker = parsed.ticker;
+                            if (parsed.settings) this.state.settings = parsed.settings;
                         }
                     }
                 } catch (e) {
@@ -345,7 +139,6 @@
                     });
                 }
 
-                // Button bindings with safety checks
                 const bindClick = (id, handler) => {
                     const el = document.getElementById(id);
                     if (el) el.addEventListener('click', handler);
@@ -371,20 +164,6 @@
                 bindChange('ticker-enabled', () => this.updateTickerSettings());
                 bindChange('global-duration', () => this.updateGlobalSettings());
                 bindChange('global-transition', () => this.updateGlobalSettings());
-
-                let hideTimer;
-                const tvControls = document.getElementById('tv-controls');
-                const showControls = () => {
-                    if (!this.isTVMode || !tvControls) return;
-                    tvControls.style.opacity = '1';
-                    clearTimeout(hideTimer);
-                    hideTimer = setTimeout(() => {
-                        if (this.isTVMode) tvControls.style.opacity = '0';
-                    }, 3000);
-                };
-
-                window.addEventListener('mousemove', showControls);
-                window.addEventListener('click', showControls);
             }
 
             handleFiles(files) {
@@ -400,8 +179,8 @@
                             fit: 'contain',
                             duration: this.state.settings.defaultDuration
                         });
-                        this.saveState();
                         this.renderAdmin();
+                        this.saveState();
                     };
                     reader.readAsDataURL(file);
                 });
@@ -416,14 +195,14 @@
                     fit: 'contain',
                     duration: this.state.settings.defaultDuration
                 });
-                this.saveState();
                 this.renderAdmin();
+                this.saveState();
             }
 
             deleteSlide(id) {
                 this.state.slides = this.state.slides.filter(s => s.id !== id);
-                this.saveState();
                 this.renderAdmin();
+                this.saveState();
             }
 
             updateSlideField(id, field, val) {
@@ -459,7 +238,7 @@
                 if (countEl) countEl.innerText = this.state.slides.length;
                 
                 const tickerTextEl = document.getElementById('ticker-text');
-                if (tickerTextEl) tickerTextEl.value = this.state.ticker.text;
+                if (tickerTextEl && document.activeElement !== tickerTextEl) tickerTextEl.value = this.state.ticker.text;
 
                 const tickerEnabledEl = document.getElementById('ticker-enabled');
                 if (tickerEnabledEl) tickerEnabledEl.checked = this.state.ticker.enabled;
@@ -531,8 +310,8 @@
                         const parsed = JSON.parse(e.target.result);
                         if (parsed && parsed.slides) {
                             this.state = parsed;
-                            this.saveState();
                             this.renderAdmin();
+                            this.saveState();
                             alert("Playlist imported successfully!");
                         }
                     } catch (err) {
@@ -663,5 +442,3 @@
             app = new RollingSignageApp();
         });
     </script>
-</body>
-</html>
