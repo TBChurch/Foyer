@@ -80,7 +80,7 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <span id="sync-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        Local Mode (Configure Cloud Below)
+                        Local Mode (Ready)
                     </span>
                     <button onclick="app.launchTVMode()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
                         <span>▶ Launch TV Display</span>
@@ -193,7 +193,7 @@
 
         <!-- TV PRESENTATION VIEW (Fullscreen Player) -->
         <div id="tv-display" class="fixed inset-0 bg-black z-50 flex flex-col hidden select-none">
-            <!-- Fullscreen Media Stage (Clean edge-to-edge, NO bottom gradient overlay) -->
+            <!-- Fullscreen Media Stage -->
             <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
                 <!-- Slides render here -->
             </div>
@@ -205,7 +205,7 @@
 
             <!-- Floating Exit / Control Bar -->
             <div id="tv-controls" class="absolute top-4 right-4 bg-slate-900/90 border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-4 transition-opacity duration-300 opacity-0 hover:opacity-100 z-50">
-                <span id="tv-status-indicator" class="text-xs text-emerald-400 font-mono">● TV SYNC ACTIVE</span>
+                <span id="tv-status-indicator" class="text-xs text-emerald-400 font-mono">● TV DISPLAY ACTIVE</span>
                 <button onclick="app.exitTVMode()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
                     Exit Display Mode
                 </button>
@@ -265,10 +265,7 @@
             }
 
             async pushToCloud() {
-                if (!this.cloudBinUrl) {
-                    this.saveLocal();
-                    return;
-                }
+                if (!this.cloudBinUrl) return;
                 try {
                     const headers = { "Content-Type": "application/json" };
                     if (this.cloudApiKey) headers["X-Master-Key"] = this.cloudApiKey;
@@ -281,12 +278,9 @@
                     if (response.ok) {
                         document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
                         document.getElementById('sync-status').innerText = "Cloud Sync Active (Synced)";
-                    } else {
-                        throw new Error("Cloud save failed");
                     }
                 } catch (e) {
-                    console.warn("Cloud push error, saving locally:", e);
-                    this.saveLocal();
+                    console.warn("Cloud push deferred:", e);
                 }
             }
 
@@ -309,26 +303,37 @@
                         }
                     }
                 } catch (e) {
-                    if (!silent) console.warn("Cloud pull error:", e);
+                    if (!silent) console.warn("Cloud pull skipped:", e);
                 }
             }
 
             saveLocal() {
-                localStorage.setItem('rolling_signage_state', JSON.stringify(this.state));
-                document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20";
-                document.getElementById('sync-status').innerText = "Local Storage Mode";
+                try {
+                    localStorage.setItem('rolling_signage_state', JSON.stringify(this.state));
+                    document.getElementById('sync-status').className = "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20";
+                    document.getElementById('sync-status').innerText = "Local Storage Mode (Saved)";
+                } catch (e) {
+                    console.error("Local storage error (quota exceeded?):", e);
+                    alert("Storage limit reached! Try using smaller image files or fewer slides.");
+                }
             }
 
             loadLocal() {
-                const saved = localStorage.getItem('rolling_signage_state');
-                if (saved) {
-                    try { this.state = JSON.parse(saved); } catch (e) {}
+                try {
+                    const saved = localStorage.getItem('rolling_signage_state');
+                    if (saved) {
+                        this.state = JSON.parse(saved);
+                    }
+                } catch (e) {
+                    console.warn("Could not load local state:", e);
                 }
                 this.renderAdmin();
             }
 
             saveState() {
+                // Always save locally first so UI updates instantly and safely
                 this.saveLocal();
+                // Then attempt background cloud sync without blocking execution
                 this.pushToCloud();
             }
 
@@ -583,7 +588,6 @@
 
                 stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass}">${contentHtml}</div>`;
                 
-                // Trigger transition animation
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         const inner = stage.firstElementChild;
