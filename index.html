@@ -3,20 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling Signage TV Studio - Cloud Sync & Transitions</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { 500: '#3b82f6', 600: '#2563eb' }
-                    }
-                }
-            }
-        }
-    </script>
+    <title>Rolling Signage TV Web App - Cloud Sync & Transitions</title>
     <style>
+        /* Base Reset & Variables */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #030712; color: #f3f4f6; overflow-x: hidden; }
+
+        /* Animations */
         @keyframes ticker {
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
@@ -26,143 +19,141 @@
             white-space: nowrap;
             animation: ticker 25s linear infinite;
         }
-        .animate-ticker:hover {
-            animation-play-state: paused;
-        }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-ticker:hover { animation-play-state: paused; }
 
         /* Slide Transition Effects */
         .slide-transition {
             transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
         }
-        .effect-fade-in {
-            opacity: 0;
-            transform: scale(1);
-        }
-        .effect-fade-active {
-            opacity: 1;
-            transform: scale(1);
-        }
-        .effect-zoom-in {
-            opacity: 0;
-            transform: scale(0.92);
-        }
-        .effect-zoom-active {
-            opacity: 1;
-            transform: scale(1);
-        }
-        .effect-slide-in {
-            opacity: 0;
-            transform: translateX(50px);
-        }
-        .effect-slide-active {
-            opacity: 1;
-            transform: translateX(0);
-        }
+        .effect-fade-in { opacity: 0; transform: scale(1); }
+        .effect-fade-active { opacity: 1; transform: scale(1); }
+        .effect-zoom-in { opacity: 0; transform: scale(0.92); }
+        .effect-zoom-active { opacity: 1; transform: scale(1); }
+        .effect-slide-in { opacity: 0; transform: translateX(50px); }
+        .effect-slide-active { opacity: 1; transform: translateX(0); }
+
+        /* UI Component Styles */
+        .app-container { min-height: 100%; display: flex; flex-direction: column; }
+        .admin-view { flex: 1; display: flex; flex-direction: column; max-width: 80rem; margin: 0 auto; width: 100%; padding: 1.5rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1.5rem; border-bottom: 1px solid #1f2937; gap: 1rem; flex-wrap: wrap; }
+        .badge-sync { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background-color: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+        .badge-synced { background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .btn-primary { background-color: #059669; color: white; font-weight: 500; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; transition: background 0.2s; }
+        .btn-primary:hover { background-color: #047857; }
+        .btn-secondary { background-color: #1f2937; color: #e5e7eb; font-size: 0.75rem; font-weight: 500; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: 1px solid #374151; cursor: pointer; transition: background 0.2s; }
+        .btn-secondary:hover { background-color: #374151; }
+        
+        .dropzone { border: 2px dashed #374151; background-color: rgba(17, 24, 39, 0.5); border-radius: 1rem; padding: 1.5rem; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s; }
+        .dropzone:hover { border-color: #3b82f6; background-color: #111827; }
+        
+        .card { background-color: rgba(17, 24, 39, 0.8); border: 1px solid #1f2937; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .input-dark { background-color: #030712; border: 1px solid #1f2937; border-radius: 0.75rem; padding: 0.625rem; font-size: 0.875rem; color: #f3f4f6; width: 100%; outline: none; }
+        .input-dark:focus { border-color: #3b82f6; }
+        
+        .grid-layout { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1.5rem; flex: 1; }
+        @media(min-width: 1024px) { .grid-layout { grid-template-columns: repeat(3, minmax(0, 1fr)); } .col-span-2 { grid-column: span 2 / span 2; } }
+
+        .slide-item { background-color: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+        
+        /* TV Display View */
+        #tv-display { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background-color: #000000 !important; user-select: none; }
+        .hidden { display: none !important; }
+        #tv-stage { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background-color: #000000 !important; }
+        #tv-ticker-bar { background-color: rgba(17, 24, 39, 0.9); color: #fde047; padding: 0.75rem 1rem; border-top: 1px solid #1f2937; font-size: 1.25rem; font-weight: 600; overflow: hidden; white-space: nowrap; }
+        #tv-controls { position: absolute; top: 1rem; right: 1rem; background-color: rgba(17, 24, 39, 0.9); border: 1px solid rgba(55, 65, 81, 0.5); border-radius: 0.75rem; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 1rem; transition: opacity 0.3s; opacity: 0; z-index: 50; }
+        #tv-display:hover #tv-controls { opacity: 1; }
     </style>
 </head>
-<body class="h-full bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden">
+<body>
 
-    <div id="app" class="min-h-full flex flex-col">
+    <!-- App Container -->
+    <div class="app-container">
 
-        <!-- Custom Notification Modal (No alert/confirm used) -->
-        <div id="custom-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-                <h3 id="modal-title" class="text-lg font-bold text-white mb-2">Notice</h3>
-                <p id="modal-message" class="text-sm text-slate-300 mb-6"></p>
-                <div id="modal-buttons" class="flex justify-end gap-3">
-                    <button id="modal-ok-btn" type="button" class="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer">OK</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="admin-view" class="flex-1 flex flex-col max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+        <!-- ADMIN DASHBOARD VIEW -->
+        <div id="admin-view" class="admin-view">
             <!-- Header -->
-            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
+            <header class="header">
                 <div>
-                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <h1 style="font-size: 1.75rem; font-weight: bold; color: white; display: flex; align-items: center; gap: 0.5rem;">
                         📺 Rolling Signage Manager
                     </h1>
-                    <p class="text-sm text-slate-400 mt-1">Manage slides, transitions, cloud sync, and stream to your TV.</p>
+                    <p style="font-size: 0.875rem; color: #9ca3af; margin-top: 0.25rem;">Manage slides, transitions, cloud sync, and stream to your TV.</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <span id="sync-status" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        🟢 Cloud Connected
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span id="sync-status" class="badge-sync badge-synced">
+                        Cloud Sync Active (Ready)
                     </span>
-                    <button id="btn-launch-tv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl shadow-lg transition flex items-center gap-2 text-sm cursor-pointer">
+                    <button id="btn-launch-tv" class="btn-primary">
                         <span>▶ Launch TV Display</span>
                     </button>
                 </div>
             </header>
 
             <!-- Main Dashboard Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 flex-1">
+            <div class="grid-layout">
                 
-                <div class="lg:col-span-2 flex flex-col gap-6">
+                <!-- Left 2 Cols: Slide List & Dropzone -->
+                <div class="col-span-2" style="display: flex; flex-direction: column; gap: 1.5rem;">
                     
                     <!-- Drag & Drop Uploader Box -->
-                    <div id="dropzone" class="border-2 border-dashed border-slate-700 hover:border-brand-500 bg-slate-900/50 hover:bg-slate-900 rounded-2xl p-6 text-center transition cursor-pointer flex flex-col items-center justify-center gap-2">
-                        <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-xl text-brand-400 pointer-events-none">
+                    <div id="dropzone" class="dropzone">
+                        <div style="width: 3rem; height: 3rem; border-radius: 9999px; background-color: #1f2937; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #60a5fa;">
                             📁
                         </div>
-                        <div class="pointer-events-none">
-                            <p class="font-medium text-slate-200">Drag & drop image or video files here</p>
-                            <p class="text-xs text-slate-400 mt-0.5">Supports PNG, JPG, GIF, MP4, WebM</p>
+                        <div>
+                            <p style="font-weight: 500; color: #e5e7eb;">Drag & drop image or video files here</p>
+                            <p style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem;">Supports PNG, JPG, GIF, MP4, WebM</p>
                         </div>
-                        <input type="file" id="file-input" multiple accept="image/*,video/*" class="hidden">
+                        <input type="file" id="file-input" multiple accept="image/*,video/*" style="display: none;">
                     </div>
 
                     <!-- Slide Management List Header -->
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-slate-200">Playlist Slides (<span id="slide-count">0</span>)</h2>
-                        <div class="flex flex-wrap gap-2">
-                            <button id="btn-add-text" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
-                                + Add Text Slide
-                            </button>
-                            <button id="btn-export-json" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
-                                Export JSON
-                            </button>
-                            <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <h2 style="font-size: 1.125rem; font-weight: 600; color: #e5e7eb;">Playlist Slides (<span id="slide-count">0</span>)</h2>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="btn-add-text" class="btn-secondary">+ Add Text Slide</button>
+                            <button id="btn-export" class="btn-secondary">Export JSON</button>
+                            <label class="btn-secondary" style="cursor: pointer;">
                                 Import JSON
-                                <input type="file" id="import-json" accept=".json" class="hidden">
+                                <input type="file" id="import-json" accept=".json" style="display: none;">
                             </label>
                         </div>
                     </div>
 
                     <!-- Slides Container -->
-                    <div id="slides-list" class="space-y-3 flex-1 overflow-y-auto max-h-[500px] pr-2">
-                        <div class="text-center py-12 text-slate-500 border border-slate-800 rounded-xl bg-slate-900/30">
+                    <div id="slides-list" style="max-height: 500px; overflow-y: auto; padding-right: 0.5rem;">
+                        <div style="text-align: center; padding: 3rem 0; color: #6b7280; border: 1px solid #1f2937; border-radius: 0.75rem; background-color: rgba(17, 24, 39, 0.3);">
                             No slides added yet. Drag & drop files above or add a text slide to get started!
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-6">
-                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
-                        <h3 class="text-md font-semibold text-slate-200 mb-4 pb-2 border-b border-slate-800">Ticker Bar Settings</h3>
-                        <div class="space-y-4">
+                <!-- Right Col: Ticker & Global Settings -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="card">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #e5e7eb; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1f2937;">Ticker Bar Settings</h3>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Ticker Message Text</label>
-                                <textarea id="ticker-text" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500" placeholder="Enter bottom scrolling announcement..."></textarea>
+                                <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Ticker Message Text</label>
+                                <textarea id="ticker-text" rows="3" class="input-dark" placeholder="Enter bottom scrolling announcement..."></textarea>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-slate-300 font-medium">Show Ticker Bar</span>
-                                <input type="checkbox" id="ticker-enabled" class="w-4 h-4 accent-brand-500 rounded bg-slate-950 border-slate-800 cursor-pointer">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.875rem; color: #d1d5db; font-weight: 500;">Show Ticker Bar</span>
+                                <input type="checkbox" id="ticker-enabled" style="width: 1rem; height: 1rem; accent-color: #3b82f6;">
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
-                        <h3 class="text-md font-semibold text-slate-200 mb-4 pb-2 border-b border-slate-800">Global Playback Settings</h3>
-                        <div class="space-y-4">
+                    <div class="card">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: #e5e7eb; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1f2937;">Global Playback Settings</h3>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Default Slide Duration (Seconds)</label>
-                                <input type="number" id="global-duration" min="2" max="120" value="10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Default Slide Duration (Seconds)</label>
+                                <input type="number" id="global-duration" min="2" max="120" value="10" class="input-dark">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Transition Effect</label>
-                                <select id="global-transition" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-500">
+                                <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #9ca3af; margin-bottom: 0.25rem;">Transition Effect</label>
+                                <select id="global-transition" class="input-dark">
                                     <option value="fade">Fade</option>
                                     <option value="zoom">Zoom</option>
                                     <option value="slide">Slide</option>
@@ -176,21 +167,22 @@
             </div>
         </div>
 
-        <div id="tv-display" class="fixed inset-0 z-50 flex flex-col hidden select-none bg-black">
-            <!-- Fullscreen Media Stage (Pure Black Background #000000) -->
-            <div id="tv-stage" class="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
+        <!-- TV PRESENTATION VIEW (Fullscreen Player) -->
+        <div id="tv-display" class="hidden">
+            <!-- Fullscreen Media Stage (Pure Black Background) -->
+            <div id="tv-stage">
                 <!-- Slides render here -->
             </div>
 
             <!-- Optional Bottom Ticker Bar -->
-            <div id="tv-ticker-bar" class="hidden bg-slate-900/90 text-amber-300 py-3 px-4 border-t border-slate-800 text-xl font-semibold overflow-hidden whitespace-nowrap">
+            <div id="tv-ticker-bar" class="hidden">
                 <div id="tv-ticker-content" class="animate-ticker"></div>
             </div>
 
             <!-- Floating Exit / Control Bar -->
-            <div id="tv-controls" class="absolute top-4 right-4 bg-slate-900/90 border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-4 transition-opacity duration-300 opacity-0 hover:opacity-100 z-50">
-                <span id="tv-status-indicator" class="text-xs text-emerald-400 font-mono">● TV DISPLAY ACTIVE</span>
-                <button id="btn-exit-tv" type="button" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer">
+            <div id="tv-controls">
+                <span id="tv-status-indicator" style="font-size: 0.75rem; color: #34d399; font-family: monospace;">● TV DISPLAY ACTIVE</span>
+                <button id="btn-exit-tv" style="background-color: #dc2626; color: white; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 500; cursor: pointer;">
                     Exit Display Mode
                 </button>
             </div>
@@ -198,6 +190,7 @@
 
     </div>
 
+    <!-- Application Script -->
     <script>
         class RollingSignageApp {
             constructor() {
@@ -213,7 +206,7 @@
                     }
                 };
                 
-                // Baked-in JSONBin Credentials
+                // Hardcoded JSONBin Credentials
                 this.cloudBinUrl = "https://api.jsonbin.io/v3/b/6abb9d43ac6210605a018507";
                 this.cloudApiKey = "$2a$10$Lw57fEK4TwqdOnZxAFHesuTWoC88So5ffCXBB55ccpto9Kl/Eksmu";
                 
@@ -227,26 +220,8 @@
 
                 if (this.cloudBinUrl) {
                     this.pullFromCloud(true);
-                    this.pollInterval = setInterval(() => this.pullFromCloud(true), 15000);
+                    this.pollInterval = setInterval(() => this.pullFromCloud(true), 10000);
                 }
-            }
-
-            showAlert(title, message) {
-                const modal = document.getElementById('custom-modal');
-                const titleEl = document.getElementById('modal-title');
-                const msgEl = document.getElementById('modal-message');
-                if (modal && titleEl && msgEl) {
-                    titleEl.innerText = title;
-                    msgEl.innerText = message;
-                    modal.classList.remove('hidden');
-                } else {
-                    console.log(title + ": " + message);
-                }
-            }
-
-            closeModal() {
-                const modal = document.getElementById('custom-modal');
-                if (modal) modal.classList.add('hidden');
             }
 
             async pushToCloud() {
@@ -263,17 +238,12 @@
                     if (response.ok) {
                         const statusEl = document.getElementById('sync-status');
                         if (statusEl) {
-                            statusEl.className = "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-                            statusEl.innerText = "🟢 Cloud Connected";
+                            statusEl.className = "badge-sync badge-synced";
+                            statusEl.innerText = "Cloud Sync Active (Synced)";
                         }
                     }
                 } catch (e) {
                     console.warn("Cloud push deferred:", e);
-                    const statusEl = document.getElementById('sync-status');
-                    if (statusEl) {
-                        statusEl.className = "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20";
-                        statusEl.innerText = "⚠️ Offline / Local Mode";
-                    }
                 }
             }
 
@@ -288,10 +258,25 @@
                         const data = await response.json();
                         const remoteState = data.record || data;
                         if (remoteState && remoteState.slides) {
-                            this.state = remoteState;
-                            this.saveLocal();
+                            // Ensure structure safety even on remote data
+                            this.state = {
+                                slides: remoteState.slides || [],
+                                ticker: {
+                                    text: (remoteState.ticker && remoteState.ticker.text) || "Welcome...",
+                                    enabled: remoteState.ticker ? remoteState.ticker.enabled : true
+                                },
+                                settings: {
+                                    defaultDuration: (remoteState.settings && remoteState.settings.defaultDuration) || 10,
+                                    transition: (remoteState.settings && remoteState.settings.transition) || "fade"
+                                }
+                            };
                             this.renderAdmin();
                             if (this.isTVMode) this.renderTVFrame();
+                            const statusEl = document.getElementById('sync-status');
+                            if (statusEl) {
+                                statusEl.className = "badge-sync badge-synced";
+                                statusEl.innerText = "Cloud Sync Active";
+                            }
                         }
                     }
                 } catch (e) {
@@ -312,8 +297,18 @@
                     const saved = localStorage.getItem('rolling_signage_state');
                     if (saved) {
                         const parsed = JSON.parse(saved);
-                        if (parsed && parsed.slides) {
-                            this.state = parsed;
+                        if (parsed) {
+                            this.state = {
+                                slides: parsed.slides || [],
+                                ticker: {
+                                    text: (parsed.ticker && parsed.ticker.text) || this.state.ticker.text,
+                                    enabled: parsed.ticker ? parsed.ticker.enabled : this.state.ticker.enabled
+                                },
+                                settings: {
+                                    defaultDuration: (parsed.settings && parsed.settings.defaultDuration) || this.state.settings.defaultDuration,
+                                    transition: (parsed.settings && parsed.settings.transition) || this.state.settings.transition
+                                }
+                            };
                         }
                     }
                 } catch (e) {
@@ -328,85 +323,48 @@
             }
 
             initListeners() {
-                // Modal OK button
-                const okBtn = document.getElementById('modal-ok-btn');
-                if (okBtn) {
-                    okBtn.addEventListener('click', () => this.closeModal());
-                }
-
-                // Launch TV button
-                const launchBtn = document.getElementById('btn-launch-tv');
-                if (launchBtn) {
-                    launchBtn.addEventListener('click', () => this.launchTVMode());
-                }
-
-                // Exit TV button
-                const exitBtn = document.getElementById('btn-exit-tv');
-                if (exitBtn) {
-                    exitBtn.addEventListener('click', () => this.exitTVMode());
-                }
-
-                // Add Text Slide button
-                const addTextBtn = document.getElementById('btn-add-text');
-                if (addTextBtn) {
-                    addTextBtn.addEventListener('click', () => this.addTextSlide());
-                }
-
-                // Export JSON button
-                const exportBtn = document.getElementById('btn-export-json');
-                if (exportBtn) {
-                    exportBtn.addEventListener('click', () => this.exportJSON());
-                }
-
-                // Import JSON input
-                const importInput = document.getElementById('import-json');
-                if (importInput) {
-                    importInput.addEventListener('change', (e) => this.importJSON(e));
-                }
-
-                // Dropzone & File Input
                 const dropzone = document.getElementById('dropzone');
                 const fileInput = document.getElementById('file-input');
 
-                if (dropzone && fileInput) {
-                    dropzone.addEventListener('click', () => fileInput.click());
-                    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-brand-500', 'bg-slate-900'); });
-                    dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('border-brand-500', 'bg-slate-900'); });
-                    dropzone.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        dropzone.classList.remove('border-brand-500', 'bg-slate-900');
-                        if (e.dataTransfer.files.length) {
-                            this.handleFiles(e.dataTransfer.files);
-                        }
-                    });
+                dropzone.addEventListener('click', () => fileInput.click());
+                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = '#3b82f6'; dropzone.style.backgroundColor = '#111827'; });
+                dropzone.addEventListener('dragleave', () => { dropzone.style.borderColor = '#374151'; dropzone.style.backgroundColor = 'rgba(17, 24, 39, 0.5)'; });
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.style.borderColor = '#374151';
+                    dropzone.style.backgroundColor = 'rgba(17, 24, 39, 0.5)';
+                    if (e.dataTransfer.files.length) {
+                        this.handleFiles(e.dataTransfer.files);
+                    }
+                });
 
-                    fileInput.addEventListener('change', (e) => {
-                        if (e.target.files.length) {
-                            this.handleFiles(e.target.files);
-                        }
-                    });
-                }
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length) {
+                        this.handleFiles(e.target.files);
+                    }
+                });
 
-                // Ticker & Global settings input listeners
-                const tickerText = document.getElementById('ticker-text');
-                const tickerEnabled = document.getElementById('ticker-enabled');
-                const globalDuration = document.getElementById('global-duration');
-                const globalTransition = document.getElementById('global-transition');
+                // Button bindings
+                document.getElementById('btn-launch-tv').addEventListener('click', () => this.launchTVMode());
+                document.getElementById('btn-exit-tv').addEventListener('click', () => this.exitTVMode());
+                document.getElementById('btn-add-text').addEventListener('click', () => this.addTextSlide());
+                document.getElementById('btn-export').addEventListener('click', () => this.exportJSON());
+                document.getElementById('import-json').addEventListener('change', (e) => this.importJSON(e));
 
-                if (tickerText) tickerText.addEventListener('input', () => this.updateTickerSettings());
-                if (tickerEnabled) tickerEnabled.addEventListener('change', () => this.updateTickerSettings());
-                if (globalDuration) globalDuration.addEventListener('change', () => this.updateGlobalSettings());
-                if (globalTransition) globalTransition.addEventListener('change', () => this.updateGlobalSettings());
+                // Settings listeners
+                document.getElementById('ticker-text').addEventListener('input', () => this.updateTickerSettings());
+                document.getElementById('ticker-enabled').addEventListener('change', () => this.updateTickerSettings());
+                document.getElementById('global-duration').addEventListener('change', () => this.updateGlobalSettings());
+                document.getElementById('global-transition').addEventListener('change', () => this.updateGlobalSettings());
 
-                // TV mouse/activity listeners
                 let hideTimer;
                 const tvControls = document.getElementById('tv-controls');
                 const showControls = () => {
-                    if (!this.isTVMode || !tvControls) return;
+                    if (!this.isTVMode) return;
                     tvControls.style.opacity = '1';
                     clearTimeout(hideTimer);
                     hideTimer = setTimeout(() => {
-                        if (this.isTVMode && tvControls) tvControls.style.opacity = '0';
+                        if (this.isTVMode) tvControls.style.opacity = '0';
                     }, 3000);
                 };
 
@@ -438,8 +396,8 @@
                 this.state.slides.push({
                     id: 'slide_' + Math.random().toString(36).substring(2),
                     type: 'text',
-                    title: 'New Announcement',
-                    content: 'Enter your custom announcement text here for the congregation.',
+                    title: 'Welcome!',
+                    content: 'Add your announcements and custom text here.',
                     fit: 'contain',
                     duration: this.state.settings.defaultDuration
                 });
@@ -454,14 +412,6 @@
             }
 
             updateSlideField(id, field, val) {
-                const slide = this.state.slides.find(s => s.id === id);
-                if (slide) {
-                    slide[field] = val;
-                    this.saveState();
-                }
-            }
-
-            updateSlideTextContent(id, field, val) {
                 const slide = this.state.slides.find(s => s.id === id);
                 if (slide) {
                     slide[field] = val;
@@ -494,17 +444,13 @@
                 if (countEl) countEl.innerText = this.state.slides.length;
                 
                 const tickerTextEl = document.getElementById('ticker-text');
-                if (tickerTextEl && document.activeElement !== tickerTextEl) {
-                    tickerTextEl.value = this.state.ticker.text;
-                }
+                if (tickerTextEl) tickerTextEl.value = this.state.ticker.text;
 
                 const tickerEnabledEl = document.getElementById('ticker-enabled');
                 if (tickerEnabledEl) tickerEnabledEl.checked = this.state.ticker.enabled;
 
                 const globalDurationEl = document.getElementById('global-duration');
-                if (globalDurationEl && document.activeElement !== globalDurationEl) {
-                    globalDurationEl.value = this.state.settings.defaultDuration;
-                }
+                if (globalDurationEl) globalDurationEl.value = this.state.settings.defaultDuration;
 
                 const globalTransitionEl = document.getElementById('global-transition');
                 if (globalTransitionEl) globalTransitionEl.value = this.state.settings.transition || 'fade';
@@ -513,77 +459,42 @@
                 if (!list) return;
 
                 if (this.state.slides.length === 0) {
-                    list.innerHTML = `<div class="text-center py-12 text-slate-500 border border-slate-800 rounded-xl bg-slate-900/30">No slides added yet. Drag & drop files above or add a text slide to get started!</div>`;
+                    list.innerHTML = `<div style="text-align: center; padding: 3rem 0; color: #6b7280; border: 1px solid #1f2937; border-radius: 0.75rem; background-color: rgba(17, 24, 39, 0.3);">No slides added yet. Drag & drop files above or add a text slide to get started!</div>`;
                     return;
                 }
 
                 list.innerHTML = this.state.slides.map((slide, idx) => `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs font-mono text-slate-500">#${idx + 1}</span>
-                                <div class="w-16 h-12 bg-slate-950 rounded-lg border border-slate-800 overflow-hidden flex items-center justify-center shrink-0">
-                                    ${slide.type === 'image' ? `<img src="${slide.url}" class="w-full h-full object-cover">` : 
-                                      slide.type === 'video' ? `<span class="text-xs text-brand-400 font-bold">MP4</span>` : 
-                                      `<span class="text-xs text-amber-400 font-bold">TXT</span>`}
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-medium text-slate-200 truncate">${slide.name || slide.title || 'Slide ' + (idx + 1)}</p>
-                                    <p class="text-xs text-slate-400 capitalize">${slide.type} slide</p>
-                                </div>
+                    <div class="slide-item">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; width: auto;">
+                            <span style="font-size: 0.75rem; font-family: monospace; color: #6b7280;">#${idx + 1}</span>
+                            <div style="width: 4rem; height: 3rem; background-color: #030712; border-radius: 0.5rem; border: 1px solid #1f2937; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                ${slide.type === 'image' ? `<img src="${slide.url}" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                                  slide.type === 'video' ? `<span style="font-size: 0.75rem; color: #60a5fa; font-weight: bold;">MP4</span>` : 
+                                  `<span style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">TXT</span>`}
                             </div>
-                            <div class="flex items-center gap-3">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs text-slate-400">Secs:</span>
-                                    <input type="number" min="2" max="120" value="${slide.duration || 10}" data-slide-duration="${slide.id}" class="w-16 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs text-slate-400">Fit:</span>
-                                    <select data-slide-fit="${slide.id}" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
-                                        <option value="contain" ${slide.fit === 'contain' ? 'selected' : ''}>Contain</option>
-                                        <option value="cover" ${slide.fit === 'cover' ? 'selected' : ''}>Cover</option>
-                                    </select>
-                                </div>
-                                <button type="button" data-slide-delete="${slide.id}" class="text-slate-500 hover:text-red-400 p-1.5 transition cursor-pointer">
-                                    🗑️
-                                </button>
+                            <div style="min-width: 0; flex: 1;">
+                                <p style="font-size: 0.875rem; font-weight: 500; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">${slide.name || slide.title || 'Slide ' + (idx + 1)}</p>
+                                <p style="font-size: 0.75rem; color: #9ca3af; text-transform: capitalize;">${slide.type} slide</p>
                             </div>
                         </div>
-                        ${slide.type === 'text' ? `
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 pt-3 border-t border-slate-800/60">
-                                <input type="text" value="${slide.title || ''}" placeholder="Slide Title" data-slide-title="${slide.id}" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
-                                <input type="text" value="${slide.content || ''}" placeholder="Slide Content/Announcement" data-slide-content="${slide.id}" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; width: auto; justify-content: flex-end;">
+                            <div style="display: flex; align-items: center; gap: 0.375rem;">
+                                <span style="font-size: 0.75rem; color: #9ca3af;">Secs:</span>
+                                <input type="number" min="2" max="120" value="${slide.duration || 10}" onchange="app.updateSlideField('${slide.id}', 'duration', parseInt(this.value))" style="width: 4rem; background-color: #030712; border: 1px solid #1f2937; border-radius: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #e5e7eb;">
                             </div>
-                        ` : ''}
+                            <div style="display: flex; align-items: center; gap: 0.375rem;">
+                                <span style="font-size: 0.75rem; color: #9ca3af;">Fit:</span>
+                                <select onchange="app.updateSlideField('${slide.id}', 'fit', this.value)" style="background-color: #030712; border: 1px solid #1f2937; border-radius: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #e5e7eb;">
+                                    <option value="contain" ${slide.fit === 'contain' ? 'selected' : ''}>Contain</option>
+                                    <option value="cover" ${slide.fit === 'cover' ? 'selected' : ''}>Cover</option>
+                                </select>
+                            </div>
+                            <button onclick="app.deleteSlide('${slide.id}')" style="background: none; border: none; cursor: pointer; color: #6b7280; padding: 0.375rem;" title="Delete slide">
+                                🗑️
+                            </button>
+                        </div>
                     </div>
                 `).join('');
-
-                // Attach dynamic listeners for slide items
-                list.querySelectorAll('[data-slide-duration]').forEach(input => {
-                    input.addEventListener('change', (e) => {
-                        this.updateSlideField(e.target.getAttribute('data-slide-duration'), 'duration', parseInt(e.target.value) || 10);
-                    });
-                });
-                list.querySelectorAll('[data-slide-fit]').forEach(select => {
-                    select.addEventListener('change', (e) => {
-                        this.updateSlideField(e.target.getAttribute('data-slide-fit'), 'fit', e.target.value);
-                    });
-                });
-                list.querySelectorAll('[data-slide-delete]').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        this.deleteSlide(e.currentTarget.getAttribute('data-slide-delete'));
-                    });
-                });
-                list.querySelectorAll('[data-slide-title]').forEach(input => {
-                    input.addEventListener('input', (e) => {
-                        this.updateSlideTextContent(e.target.getAttribute('data-slide-title'), 'title', e.target.value);
-                    });
-                });
-                list.querySelectorAll('[data-slide-content]').forEach(input => {
-                    input.addEventListener('input', (e) => {
-                        this.updateSlideTextContent(e.target.getAttribute('data-slide-content'), 'content', e.target.value);
-                    });
-                });
             }
 
             exportJSON() {
@@ -607,10 +518,10 @@
                             this.state = parsed;
                             this.saveState();
                             this.renderAdmin();
-                            this.showAlert("Success", "Playlist imported successfully!");
+                            alert("Playlist imported successfully!");
                         }
                     } catch (err) {
-                        this.showAlert("Error", "Invalid JSON file format.");
+                        alert("Invalid JSON file format.");
                     }
                 };
                 reader.readAsText(file);
@@ -618,14 +529,12 @@
 
             launchTVMode() {
                 if (this.state.slides.length === 0) {
-                    this.showAlert("Notice", "Please add at least one slide before launching TV mode.");
+                    alert("Please add at least one slide before launching TV mode.");
                     return;
                 }
                 this.isTVMode = true;
-                const adminView = document.getElementById('admin-view');
-                const tvDisplay = document.getElementById('tv-display');
-                if (adminView) adminView.classList.add('hidden');
-                if (tvDisplay) tvDisplay.classList.remove('hidden');
+                document.getElementById('admin-view').classList.add('hidden');
+                document.getElementById('tv-display').classList.remove('hidden');
                 
                 try { document.documentElement.requestFullscreen(); } catch(e) {}
 
@@ -636,10 +545,8 @@
             exitTVMode() {
                 this.isTVMode = false;
                 clearTimeout(this.slideTimer);
-                const adminView = document.getElementById('admin-view');
-                const tvDisplay = document.getElementById('tv-display');
-                if (tvDisplay) tvDisplay.classList.add('hidden');
-                if (adminView) adminView.classList.remove('hidden');
+                document.getElementById('tv-display').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
                 try { if (document.fullscreenElement) document.exitFullscreen(); } catch(e) {}
             }
 
@@ -649,10 +556,10 @@
                 const tickerBar = document.getElementById('tv-ticker-bar');
                 const tickerContent = document.getElementById('tv-ticker-content');
                 if (this.state.ticker.enabled && this.state.ticker.text) {
-                    if (tickerBar) tickerBar.classList.remove('hidden');
-                    if (tickerContent) tickerContent.innerText = this.state.ticker.text;
+                    tickerBar.classList.remove('hidden');
+                    tickerContent.innerText = this.state.ticker.text;
                 } else {
-                    if (tickerBar) tickerBar.classList.add('hidden');
+                    tickerBar.classList.add('hidden');
                 }
 
                 if (this.currentSlideIndex >= this.state.slides.length) {
@@ -661,30 +568,29 @@
 
                 const slide = this.state.slides[this.currentSlideIndex];
                 const stage = document.getElementById('tv-stage');
-                if (!stage) return;
                 
                 if (!slide) {
-                    stage.innerHTML = `<div class="text-white text-2xl">No slides available</div>`;
+                    stage.innerHTML = `<div style="color: white; font-size: 1.5rem;">No slides available</div>`;
                     return;
                 }
 
                 let contentHtml = '';
-                const fitClass = slide.fit === 'cover' ? 'w-full h-full object-cover' : 'max-w-full max-h-full object-contain';
+                const fitStyle = slide.fit === 'cover' ? 'width: 100%; height: 100%; object-fit: cover;' : 'max-width: 100%; max-height: 100%; object-fit: contain;';
 
                 if (slide.type === 'image') {
-                    contentHtml = `<img src="${slide.url}" class="${fitClass}">`;
+                    contentHtml = `<img src="${slide.url}" style="${fitStyle}">`;
                 } else if (slide.type === 'video') {
-                    contentHtml = `<video src="${slide.url}" class="${fitClass}" autoplay muted playsinline></video>`;
+                    contentHtml = `<video src="${slide.url}" style="${fitStyle}" autoplay muted playsinline></video>`;
                 } else if (slide.type === 'text') {
                     contentHtml = `
-                        <div class="max-w-4xl p-12 text-center">
-                            <h2 class="text-5xl font-extrabold text-white mb-6 drop-shadow-md">${slide.title || ''}</h2>
-                            <p class="text-3xl text-slate-200 leading-relaxed drop-shadow">${slide.content || ''}</p>
+                        <div style="max-width: 56rem; padding: 3rem; text-align: center;">
+                            <h2 style="font-size: 3rem; font-weight: 800; color: white; margin-bottom: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${slide.title || ''}</h2>
+                            <p style="font-size: 1.875rem; color: #e5e7eb; line-height: 1.6; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${slide.content || ''}</p>
                         </div>
                     `;
                 }
 
-                const effect = this.state.settings.transition || 'fade';
+                const effect = (this.state.settings && this.state.settings.transition) || 'fade';
                 let startClass = 'effect-fade-in';
                 let activeClass = 'effect-fade-active';
                 if (effect === 'zoom') {
@@ -698,16 +604,18 @@
                     activeClass = '';
                 }
 
-                stage.innerHTML = `<div class="w-full h-full flex items-center justify-center slide-transition ${startClass} bg-black">${contentHtml}</div>`;
+                stage.innerHTML = `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #000000 !important;" class="slide-transition ${startClass}">${contentHtml}</div>`;
                 
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         const inner = stage.firstElementChild;
-                        if (inner) inner.className = `w-full h-full flex items-center justify-center slide-transition ${activeClass} bg-black`;
+                        if (inner) inner.className = `slide-transition ${activeClass}`;
+                        inner.style.cssText = "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #000000 !important;";
                     });
                 });
 
-                const duration = (slide.duration || this.state.settings.defaultDuration) * 1000;
+                const defDur = (this.state.settings && this.state.settings.defaultDuration) || 10;
+                const duration = (slide.duration || defDur) * 1000;
                 
                 if (slide.type === 'video') {
                     const videoEl = stage.querySelector('video');
@@ -735,10 +643,7 @@
             }
         }
 
-        // Initialize application once DOM is fully ready
-        document.addEventListener('DOMContentLoaded', () => {
-            window.app = new RollingSignageApp();
-        });
+        const app = new RollingSignageApp();
     </script>
 </body>
 </html>
