@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rolling Signage TV Web App</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom slide transition effects */
+        .slide-fade {
+            animation: fadeInOut 0.8s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .slide-slide {
+            animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideIn {
+            0% { transform: translateY(30px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .slide-zoom {
+            animation: zoomIn 0.7s ease-out;
+        }
+        @keyframes zoomIn {
+            0% { transform: scale(1.05); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        /* Ticker animation */
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
+        }
+        .animate-ticker {
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker 30s linear infinite;
+        }
+        .animate-ticker:hover {
+            animation-play-state: paused;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 flex flex-col overflow-hidden">
+
+    <div id="app" class="flex flex-col h-full w-full">
+        <!-- Top Navbar -->
+        <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between shadow-md z-10">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg flex items-center justify-center">
+                    <i class="fa-solid fa-tv text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        Rolling Signage TV
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Pro Signage</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Manage digital signage playlists & display in full screen TV mode</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="appState.openAddModal()" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/20 transition-all cursor-pointer">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Slide</span>
+                </button>
+                <button onclick="appState.startPresentation()" class="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-emerald-600/20 transition-all cursor-pointer">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Start TV Mode</span>
+                </button>
+                <div class="h-6 w-px bg-slate-700 mx-1"></div>
+                <button onclick="appState.exportJSON()" title="Backup JSON" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2.5 rounded-xl text-sm transition-all cursor-pointer">
+                    <i class="fa-solid fa-download"></i>
+                </button>
+                <label title="Restore JSON" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-2.5 rounded-xl text-sm transition-all cursor-pointer inline-flex items-center justify-center">
+                    <i class="fa-solid fa-upload"></i>
+                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="appState.importJSON(event)">
+                </label>
+            </div>
+        </header>
+
+        <!-- Main Workspace / Dashboard -->
+        <main class="flex-1 flex overflow-hidden">
+            <!-- Left Side: Ticker & Global Settings -->
+            <div class="w-80 bg-slate-800/60 border-r border-slate-700 p-6 flex flex-col justify-between overflow-y-auto">
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-bullhorn text-indigo-400"></i> Bottom Ticker Bar
+                        </h2>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Ticker Message</label>
+                                <textarea id="tickerText" rows="3" oninput="appState.updateTicker(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs text-slate-400">Show Ticker</label>
+                                <input type="checkbox" id="tickerEnabled" onchange="appState.toggleTicker(this.checked)" class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-indigo-500 cursor-pointer">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-700">
+
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-indigo-400"></i> Quick Stats
+                        </h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-900/60 border border-slate-700/60 p-3 rounded-xl">
+                                <div class="text-2xl font-bold text-indigo-400" id="statTotalSlides">0</div>
+                                <div class="text-xs text-slate-400">Total Slides</div>
+                            </div>
+                            <div class="bg-slate-900/60 border border-slate-700/60 p-3 rounded-xl">
+                                <div class="text-2xl font-bold text-emerald-400" id="statTotalDuration">0s</div>
+                                <div class="text-xs text-slate-400">Loop Time</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/40 border border-slate-700/40 p-4 rounded-xl text-xs text-slate-400 space-y-2">
+                    <div class="font-medium text-slate-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-indigo-400"></i> Pro Tip
+                    </div>
+                    <p>Upload images directly from your device or use URLs to build dynamic signage loops instantly.</p>
+                </div>
+            </div>
+
+            <!-- Right Side: Slide List & Preview Card -->
+            <div class="flex-1 flex flex-col bg-slate-900 overflow-hidden">
+                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-white">Playlist Manager</h2>
+                        <p class="text-xs text-slate-400">Drag or reorder slides, preview content, and configure display timings</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="appState.clearAllSlides()" class="text-xs text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg transition cursor-pointer">
+                            <i class="fa-solid fa-trash-can mr-1"></i> Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div id="slidesList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <!-- Dynamic Slide Cards inserted here -->
+                    </div>
+                    <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-center py-16">
+                        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4 text-2xl">
+                            <i class="fa-solid fa-clapperboard"></i>
+                        </div>
+                        <h3 class="text-base font-medium text-slate-300">No slides in playlist</h3>
+                        <p class="text-xs text-slate-500 max-w-sm mt-1">Get started by creating your first signage slide with custom text, images, or videos.</p>
+                        <button onclick="appState.openAddModal()" class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-medium transition cursor-pointer">
+                            Create First Slide
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Slide Modal -->
+    <div id="slideModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden transition-all">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between bg-slate-800/80">
+                <h3 id="modalTitle" class="text-base font-semibold text-white">Add New Slide</h3>
+                <button onclick="appState.closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="slideForm" onsubmit="appState.saveSlide(event)" class="p-6 overflow-y-auto space-y-4 flex-1">
+                <input type="hidden" id="slideId">
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Slide Title</label>
+                    <input type="text" id="slideTitle" required placeholder="e.g. Morning Welcome & Announcements" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Slide Type</label>
+                        <select id="slideType" onchange="appState.handleTypeChange(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <option value="text">Text / Announcement</option>
+                            <option value="image">Image Slide</option>
+                            <option value="video">Video Slide</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Duration (Seconds)</label>
+                        <input type="number" id="slideDuration" min="1" max="300" value="10" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Media Section (Images / Videos) -->
+                <div id="mediaGroup" class="space-y-4 hidden">
+                    <div id="imageUploadSection" class="space-y-2">
+                        <label class="block text-xs font-medium text-slate-300">Upload Image File (Device)</label>
+                        <div class="flex items-center space-x-2">
+                            <label class="flex-1 bg-slate-900 border border-dashed border-slate-600 hover:border-indigo-500 rounded-xl px-4 py-2.5 text-xs text-slate-300 flex items-center justify-center space-x-2 cursor-pointer transition">
+                                <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
+                                <span id="uploadFileName">Choose image file...</span>
+                                <input type="file" id="imageFileInput" accept="image/*" class="hidden" onchange="appState.handleImageUpload(event)">
+                            </label>
+                            <button type="button" onclick="appState.clearImageFile()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-2.5 rounded-xl text-xs transition" title="Clear Upload">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Or Media URL (Image or Direct MP4 Video link)</label>
+                        <input type="url" id="slideMediaUrl" placeholder="https://images.unsplash.com/..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div id="fitModeGroup" class="hidden">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Image Fit Mode (Full Screen)</label>
+                        <select id="slideFitMode" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <option value="cover">Cover (Full Screen Fill / Edge-to-Edge)</option>
+                            <option value="contain">Contain (Fit Entire Image / Letterbox)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Content / Description / HTML</label>
+                    <textarea id="slideContent" rows="3" placeholder="Enter slide message or overlay caption..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Background Theme</label>
+                        <select id="slideBgColor" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <option value="bg-slate-900">Slate Dark</option>
+                            <option value="bg-indigo-950">Deep Indigo</option>
+                            <option value="bg-blue-950">Navy Blue</option>
+                            <option value="bg-emerald-950">Emerald Forest</option>
+                            <option value="bg-violet-950">Violet Dusk</option>
+                            <option value="bg-amber-950">Warm Amber</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Transition Effect</label>
+                        <select id="slideTransition" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500">
+                            <option value="slide-fade">Fade</option>
+                            <option value="slide-slide">Slide Up</option>
+                            <option value="slide-zoom">Zoom</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-700 flex items-center justify-end space-x-3">
+                    <button type="button" onclick="appState.closeModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition cursor-pointer">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-indigo-600/20 transition cursor-pointer">
+                        Save Slide
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TV Presentation Fullscreen Mode -->
+    <div id="tvPresentation" class="fixed inset-0 z-50 bg-black hidden flex flex-col justify-between overflow-hidden select-none">
+        <div id="tvHeader" class="absolute top-0 left-0 right-0 p-6 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent z-20 opacity-0 transition-opacity duration-300 hover:opacity-100">
+            <div class="flex items-center space-x-3 text-white/80">
+                <span class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="tvSlideCounter" class="text-sm font-medium">Slide 1 of 5</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="appState.toggleTvPlayPause()" id="tvPlayPauseBtn" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl backdrop-blur-md text-xs font-medium transition cursor-pointer">
+                    <i class="fa-solid fa-pause mr-1"></i> Pause
+                </button>
+                <button onclick="appState.stopPresentation()" class="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-xl backdrop-blur-md text-xs font-medium transition cursor-pointer">
+                    <i class="fa-solid fa-xmark mr-1"></i> Exit TV Mode
+                </button>
+            </div>
+        </div>
+
+        <div id="tvScreenArea" class="flex-1 relative flex items-center justify-center overflow-hidden">
+            <!-- Dynamic Active Slide Rendered Here -->
+        </div>
+
+        <div id="tvTickerContainer" class="bg-black/90 border-t border-slate-800 text-white py-3 px-4 overflow-hidden relative z-10 hidden">
+            <div class="whitespace-nowrap overflow-hidden relative w-full">
+                <div id="tvTickerContent" class="animate-ticker text-sm font-medium text-indigo-300 flex items-center space-x-12">
+                    <!-- Ticker text inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="h-1 bg-slate-800 w-full relative z-20">
+            <div id="tvProgressBar" class="h-full bg-indigo-500 transition-all duration-100 ease-linear" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <script>
+        class RollingSignageApp {
+            constructor() {
+                this.slides = [];
+                this.tickerText = "Welcome to Rolling Signage TV! • Real-time digital signage displays made easy. • Enjoy your personalized playlist.";
+                this.tickerEnabled = true;
+                
+                // TV Presentation state
+                this.currentTvIndex = 0;
+                this.tvTimer = null;
+                this.tvProgressTimer = null;
+                this.isPaused = false;
+                this.tempImageBase64 = '';
+
+                this.loadFromStorage();
+                this.render();
+            }
+
+            loadFromStorage() {
+                const savedSlides = localStorage.getItem('rolling_signage_slides');
+                const savedTicker = localStorage.getItem('rolling_signage_ticker');
+                const savedTickerEnabled = localStorage.getItem('rolling_signage_ticker_enabled');
+
+                if (savedSlides) {
+                    try {
+                        this.slides = JSON.parse(savedSlides);
+                    } catch (e) {
+                        this.slides = [];
+                    }
+                } else {
+                    this.slides = [
+                        {
+                            id: 'slide_1',
+                            title: 'Welcome to Our Lobby',
+                            type: 'text',
+                            duration: 8,
+                            mediaUrl: '',
+                            fitMode: 'cover',
+                            content: 'Please check in at the reception desk upon arrival.\nEnjoy complimentary Wi-Fi: SignageGuest / Welcome2026',
+                            bgColor: 'bg-indigo-950',
+                            transition: 'slide-fade'
+                        },
+                        {
+                            id: 'slide_2',
+                            title: 'Featured Signage Display',
+                            type: 'image',
+                            duration: 10,
+                            mediaUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1200&q=80',
+                            fitMode: 'cover',
+                            content: 'Inspiring teamwork and innovation across all modern workspaces.',
+                            bgColor: 'bg-slate-900',
+                            transition: 'slide-zoom'
+                        }
+                    ];
+                }
+
+                if (savedTicker !== null) this.tickerText = savedTicker;
+                if (savedTickerEnabled !== null) this.tickerEnabled = savedTickerEnabled === 'true';
+
+                document.getElementById('tickerText').value = this.tickerText;
+                document.getElementById('tickerEnabled').checked = this.tickerEnabled;
+            }
+
+            saveToStorage() {
+                localStorage.setItem('rolling_signage_slides', JSON.stringify(this.slides));
+                localStorage.setItem('rolling_signage_ticker', this.tickerText);
+                localStorage.setItem('rolling_signage_ticker_enabled', this.tickerEnabled);
+            }
+
+            render() {
+                const listContainer = document.getElementById('slidesList');
+                const emptyState = document.getElementById('emptyState');
+                const statTotalSlides = document.getElementById('statTotalSlides');
+                const statTotalDuration = document.getElementById('statTotalDuration');
+
+                statTotalSlides.textContent = this.slides.length;
+                const totalDur = this.slides.reduce((acc, s) => acc + parseInt(s.duration || 10), 0);
+                statTotalDuration.textContent = totalDur + 's';
+
+                if (this.slides.length === 0) {
+                    listContainer.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                listContainer.innerHTML = this.slides.map((slide, index) => `
+                    <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between shadow-lg relative group hover:border-indigo-500/50 transition">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-700 text-slate-300 flex items-center gap-1.5">
+                                    <i class="fa-solid ${slide.type === 'text' ? 'fa-align-left text-indigo-400' : slide.type === 'image' ? 'fa-image text-emerald-400' : 'fa-video text-blue-400'}"></i>
+                                    ${slide.type.toUpperCase()}
+                                </span>
+                                <div class="flex items-center space-x-1 text-slate-400">
+                                    <span class="text-xs mr-2"><i class="fa-regular fa-clock mr-1"></i>${slide.duration}s</span>
+                                    <button onclick="appState.moveSlide(${index}, -1)" ${index === 0 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''} title="Move Up" class="p-1.5 hover:text-white rounded transition cursor-pointer">
+                                        <i class="fa-solid fa-arrow-up text-xs"></i>
+                                    </button>
+                                    <button onclick="appState.moveSlide(${index}, 1)" ${index === this.slides.length - 1 ? 'disabled class="opacity-30 cursor-not-allowed"' : ''} title="Move Down" class="p-1.5 hover:text-white rounded transition cursor-pointer">
+                                        <i class="fa-solid fa-arrow-down text-xs"></i>
+                                    </button>
+                                    <button onclick="appState.openEditModal('${slide.id}')" title="Edit Slide" class="p-1.5 hover:text-indigo-400 rounded transition cursor-pointer">
+                                        <i class="fa-solid fa-pen text-xs"></i>
+                                    </button>
+                                    <button onclick="appState.deleteSlide('${slide.id}')" title="Delete Slide" class="p-1.5 hover:text-red-400 rounded transition cursor-pointer">
+                                        <i class="fa-solid fa-trash text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <h3 class="text-sm font-semibold text-white mb-1 truncate">${escapeHtml(slide.title)}</h3>
+                            <p class="text-xs text-slate-400 line-clamp-2">${escapeHtml(slide.content || (slide.mediaUrl ? 'Media Asset Attached' : 'No content'))}</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-500">
+                            <span>Slide #${index + 1}</span>
+                            <span class="capitalize text-slate-400">${slide.fitMode ? slide.fitMode + ' fit • ' : ''}${slide.transition || 'Fade'}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            openAddModal() {
+                document.getElementById('modalTitle').textContent = 'Add New Slide';
+                document.getElementById('slideForm').reset();
+                document.getElementById('slideId').value = '';
+                document.getElementById('slideDuration').value = '10';
+                document.getElementById('uploadFileName').textContent = 'Choose image file...';
+                this.tempImageBase64 = '';
+                this.handleTypeChange('text');
+                document.getElementById('slideModal').classList.remove('hidden');
+            }
+
+            openEditModal(id) {
+                const slide = this.slides.find(s => s.id === id);
+                if (!slide) return;
+
+                document.getElementById('modalTitle').textContent = 'Edit Slide';
+                document.getElementById('slideId').value = slide.id;
+                document.getElementById('slideTitle').value = slide.title;
+                document.getElementById('slideType').value = slide.type;
+                document.getElementById('slideDuration').value = slide.duration;
+                document.getElementById('slideMediaUrl').value = slide.mediaUrl && !slide.mediaUrl.startsWith('data:') ? slide.mediaUrl : '';
+                document.getElementById('slideFitMode').value = slide.fitMode || 'cover';
+                document.getElementById('slideContent').value = slide.content || '';
+                document.getElementById('slideBgColor').value = slide.bgColor || 'bg-slate-900';
+                document.getElementById('slideTransition').value = slide.transition || 'slide-fade';
+
+                if (slide.mediaUrl && slide.mediaUrl.startsWith('data:')) {
+                    this.tempImageBase64 = slide.mediaUrl;
+                    document.getElementById('uploadFileName').textContent = 'Image file loaded from storage';
+                } else {
+                    this.tempImageBase64 = '';
+                    document.getElementById('uploadFileName').textContent = 'Choose image file...';
+                }
+
+                this.handleTypeChange(slide.type);
+                document.getElementById('slideModal').classList.remove('hidden');
+            }
+
+            closeModal() {
+                document.getElementById('slideModal').classList.add('hidden');
+            }
+
+            handleTypeChange(type) {
+                const mediaGroup = document.getElementById('mediaGroup');
+                const imageSection = document.getElementById('imageUploadSection');
+                const fitModeGroup = document.getElementById('fitModeGroup');
+
+                if (type === 'image') {
+                    mediaGroup.classList.remove('hidden');
+                    imageSection.classList.remove('hidden');
+                    fitModeGroup.classList.remove('hidden');
+                } else if (type === 'video') {
+                    mediaGroup.classList.remove('hidden');
+                    imageSection.classList.add('hidden');
+                    fitModeGroup.classList.add('hidden');
+                } else {
+                    mediaGroup.classList.add('hidden');
+                }
+            }
+
+            handleImageUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                document.getElementById('uploadFileName').textContent = file.name;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.tempImageBase64 = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            clearImageFile() {
+                this.tempImageBase64 = '';
+                document.getElementById('imageFileInput').value = '';
+                document.getElementById('uploadFileName').textContent = 'Choose image file...';
+            }
+
+            saveSlide(event) {
+                event.preventDefault();
+                const id = document.getElementById('slideId').value;
+                const type = document.getElementById('slideType.value') || document.getElementById('slideType').value;
+                
+                let mediaUrl = document.getElementById('slideMediaUrl').value.trim();
+                if (type === 'image' && this.tempImageBase64) {
+                    mediaUrl = this.tempImageBase64;
+                }
+
+                const slideData = {
+                    id: id ? id : 'slide_' + Date.now(),
+                    title: document.getElementById('slideTitle').value,
+                    type: type,
+                    duration: parseInt(document.getElementById('slideDuration').value) || 10,
+                    mediaUrl: mediaUrl,
+                    fitMode: document.getElementById('slideFitMode').value,
+                    content: document.getElementById('slideContent').value,
+                    bgColor: document.getElementById('slideBgColor').value,
+                    transition: document.getElementById('slideTransition').value
+                };
+
+                if (id) {
+                    const idx = this.slides.findIndex(s => s.id === id);
+                    if (idx !== -1) this.slides[idx] = slideData;
+                } else {
+                    this.slides.push(slideData);
+                }
+
+                this.saveToStorage();
+                this.closeModal();
+                this.render();
+            }
+
+            deleteSlide(id) {
+                if (confirm('Are you sure you want to delete this slide?')) {
+                    this.slides = this.slides.filter(s => s.id !== id);
+                    this.saveToStorage();
+                    this.render();
+                }
+            }
+
+            clearAllSlides() {
+                if (confirm('Are you sure you want to remove all slides in this playlist?')) {
+                    this.slides = [];
+                    this.saveToStorage();
+                    this.render();
+                }
+            }
+
+            moveSlide(index, direction) {
+                const newIndex = index + direction;
+                if (newIndex < 0 || newIndex >= this.slides.length) return;
+                const temp = this.slides[index];
+                this.slides[index] = this.slides[newIndex];
+                this.slides[newIndex] = temp;
+                this.saveToStorage();
+                this.render();
+            }
+
+            updateTicker(val) {
+                this.tickerText = val;
+                this.saveToStorage();
+            }
+
+            toggleTicker(val) {
+                this.tickerEnabled = val;
+                this.saveToStorage();
+            }
+
+            exportJSON() {
+                const data = {
+                    slides: this.slides,
+                    tickerText: this.tickerText,
+                    tickerEnabled: this.tickerEnabled
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `rolling-signage-backup-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            importJSON(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const parsed = JSON.parse(e.target.result);
+                        if (parsed.slides && Array.isArray(parsed.slides)) {
+                            this.slides = parsed.slides;
+                            if (parsed.tickerText) {
+                                this.tickerText = parsed.tickerText;
+                                document.getElementById('tickerText').value = this.tickerText;
+                            }
+                            if (parsed.tickerEnabled !== undefined) {
+                                this.tickerEnabled = parsed.tickerEnabled;
+                                document.getElementById('tickerEnabled').checked = this.tickerEnabled;
+                            }
+                            this.saveToStorage();
+                            this.render();
+                            alert('Playlist successfully imported!');
+                        } else {
+                            alert('Invalid JSON file format.');
+                        }
+                    } catch (err) {
+                        alert('Error parsing JSON backup file.');
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            }
+
+            // TV Presentation Engine
+            startPresentation() {
+                if (this.slides.length === 0) {
+                    alert('Please add at least one slide before starting TV mode.');
+                    return;
+                }
+
+                this.currentTvIndex = 0;
+                this.isPaused = false;
+                document.getElementById('tvPresentation').classList.remove('hidden');
+                
+                const tvTickerContainer = document.getElementById('tvTickerContainer');
+                const tvTickerContent = document.getElementById('tvTickerContent');
+                if (this.tickerEnabled && this.tickerText.trim()) {
+                    tvTickerContainer.classList.remove('hidden');
+                    const repeatedText = `<span>${escapeHtml(this.tickerText)}</span>`.repeat(4);
+                    tvTickerContent.innerHTML = repeatedText;
+                } else {
+                    tvTickerContainer.classList.add('hidden');
+                }
+
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().catch(() => {});
+                }
+
+                this.playCurrentTvSlide();
+            }
+
+            stopPresentation() {
+                if (this.tvTimer) clearTimeout(this.tvTimer);
+                if (this.tvProgressTimer) clearInterval(this.tvProgressTimer);
+                document.getElementById('tvPresentation').classList.add('hidden');
+
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+
+            toggleTvPlayPause() {
+                this.isPaused = !this.isPaused;
+                const btn = document.getElementById('tvPlayPauseBtn');
+                if (this.isPaused) {
+                    if (this.tvTimer) clearTimeout(this.tvTimer);
+                    if (this.tvProgressTimer) clearInterval(this.tvProgressTimer);
+                    btn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> Resume';
+                } else {
+                    btn.innerHTML = '<i class="fa-solid fa-pause mr-1"></i> Pause';
+                    this.playCurrentTvSlide();
+                }
+            }
+
+            playCurrentTvSlide() {
+                if (this.tvTimer) clearTimeout(this.tvTimer);
+                if (this.tvProgressTimer) clearInterval(this.tvProgressTimer);
+
+                const slide = this.slides[this.currentTvIndex];
+                const screenArea = document.getElementById('tvScreenArea');
+                const counter = document.getElementById('tvSlideCounter');
+                const progressBar = document.getElementById('tvProgressBar');
+
+                counter.textContent = `Slide ${this.currentTvIndex + 1} of ${this.slides.length}`;
+
+                let contentHtml = '';
+                if (slide.type === 'text') {
+                    contentHtml = `
+                        <div class="max-w-4xl px-8 text-center space-y-6 ${slide.transition || 'slide-fade'}">
+                            <h2 class="text-4xl md:text-6xl font-bold tracking-tight text-white">${escapeHtml(slide.title)}</h2>
+                            <p class="text-xl md:text-2xl text-slate-300 whitespace-pre-wrap leading-relaxed">${escapeHtml(slide.content)}</p>
+                        </div>
+                    `;
+                } else if (slide.type === 'image') {
+                    const fitClass = slide.fitMode === 'contain' ? 'object-contain max-h-[85vh] max-w-[90vw]' : 'object-cover w-full h-full absolute inset-0';
+                    const captionOverlay = slide.content ? `
+                        <div class="absolute bottom-8 left-8 right-8 bg-black/60 backdrop-blur-md p-6 rounded-2xl max-w-2xl mx-auto text-center z-10 border border-white/10">
+                            <h3 class="text-xl font-bold text-white mb-1">${escapeHtml(slide.title)}</h3>
+                            <p class="text-sm text-slate-200">${escapeHtml(slide.content)}</p>
+                        </div>
+                    ` : '';
+
+                    contentHtml = `
+                        <div class="absolute inset-0 flex items-center justify-center overflow-hidden ${slide.transition || 'slide-fade'}">
+                            <img src="${slide.mediaUrl}" alt="${escapeHtml(slide.title)}" class="${fitClass}" onerror="this.src='https://placehold.co/800x450/1e293b/94a3b8?text=Image+Load+Error'">
+                            ${captionOverlay}
+                        </div>
+                    `;
+                } else if (slide.type === 'video') {
+                    contentHtml = `
+                        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 ${slide.transition || 'slide-fade'}">
+                            <video autoplay muted loop playsinline class="max-h-[75vh] max-w-[85vw] object-contain rounded-2xl shadow-2xl mb-4">
+                                <source src="${slide.mediaUrl}" type="video/mp4">
+                                Your browser does not support video playback.
+                            </video>
+                            <div class="text-center max-w-2xl">
+                                <h3 class="text-2xl font-bold text-white mb-1">${escapeHtml(slide.title)}</h3>
+                                <p class="text-sm text-slate-300">${escapeHtml(slide.content)}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                screenArea.innerHTML = `
+                    <div class="absolute inset-0 ${slide.bgColor || 'bg-slate-900'} flex items-center justify-center">
+                        ${contentHtml}
+                    </div>
+                `;
+
+                const durationMs = (slide.duration || 10) * 1000;
+                let elapsed = 0;
+                const intervalMs = 100;
+                progressBar.style.width = '0%';
+
+                this.tvProgressTimer = setInterval(() => {
+                    if (!this.isPaused) {
+                        elapsed += intervalMs;
+                        const pct = Math.min(100, (elapsed / durationMs) * 100);
+                        progressBar.style.width = pct + '%';
+                    }
+                }, intervalMs);
+
+                this.tvTimer = setTimeout(() => {
+                    this.currentTvIndex = (this.currentTvIndex + 1) % this.slides.length;
+                    this.playCurrentTvSlide();
+                }, durationMs);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        const appState = new RollingSignageApp();
+    </script>
+</body>
+</html>
