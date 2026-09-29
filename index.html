@@ -150,7 +150,7 @@
             </div>
             <div id="tv-controls">
                 <span style="font-size: 0.75rem; color: #34d399; font-family: monospace;">● TV DISPLAY ACTIVE</span>
-                <button id="btn-exit-tv" style="background-color: #dc2626; color: white; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 500; cursor: pointer;">Exit Display Mode</button>
+                <button id="btn-exit-tv" style="background-color: #dc2626; color: white; padding: 0.375rem 0.75rem; border-radius: 0.5rem; border: none; font-size: 0.75rem; font-weight: 500; pointer-events: auto; cursor: pointer;">Exit Display Mode</button>
             </div>
         </div>
     </div>
@@ -178,15 +178,58 @@
                 this.isTVMode = false;
                 this.syncTimeout = null;
 
-                this.initApp();
-            }
-
-            async initApp() {
-                await this.pullFromCloud();
+                this.loadLocalCache();
                 this.initListeners();
                 this.renderAdmin();
+                this.initCloudSync();
+            }
+
+            loadLocalCache() {
+                try {
+                    const cached = localStorage.getItem('rolling_signage_state');
+                    if (cached) {
+                        const parsed = JSON.parse(cached);
+                        if (parsed.ticker) this.state.ticker = parsed.ticker;
+                        if (parsed.settings) this.state.settings = parsed.settings;
+                        if (Array.isArray(parsed.slides)) {
+                            this.state.slides = parsed.slides.map(s => ({
+                                ...s,
+                                url: s.url || '' // Keep track of existing object URLs if still active in memory
+                            }));
+                        }
+                    }
+                } catch (e) {
+                    console.error("Local cache load error:", e);
+                }
+            }
+
+            saveLocalCache() {
+                try {
+                    const payload = {
+                        ticker: this.state.ticker,
+                        settings: this.state.settings,
+                        slides: this.state.slides.map(s => ({
+                            id: s.id,
+                            type: s.type,
+                            name: s.name,
+                            title: s.title,
+                            content: s.content,
+                            fit: s.fit || 'contain',
+                            duration: s.duration || 10,
+                            url: s.type === 'text' ? '' : s.url
+                        }))
+                    };
+                    localStorage.setItem('rolling_signage_state', JSON.stringify(payload));
+                } catch (e) {
+                    console.error("Local cache save error:", e);
+                }
+            }
+
+            async initCloudSync() {
+                await this.pullFromCloud();
+                this.renderAdmin();
                 
-                // Periodic cloud sync push every 10 seconds if changes happen
+                // Periodic cloud sync push every 10 seconds
                 setInterval(() => this.pushToCloud(), 10000);
             }
 
@@ -199,19 +242,20 @@
                     });
                     if (response.ok) {
                         const json = await response.json();
-                        if (json && json.record) {
+                        if (json && json.record && Array.isArray(json.record.slides) && json.record.slides.length > 0) {
                             const cloudData = json.record;
                             if (cloudData.ticker) this.state.ticker = cloudData.ticker;
                             if (cloudData.settings) this.state.settings = cloudData.settings;
-                            if (Array.isArray(cloudData.slides)) {
-                                // Map cloud slides. Note: blob URLs are local per browser session, 
-                                // so text slides and durations restore automatically.
-                                this.state.slides = cloudData.slides.map(cs => ({
+                            
+                            // Merge cloud slides, preserving local URLs if they match
+                            this.state.slides = cloudData.slides.map(cs => {
+                                const existing = this.state.slides.find(s => s.id === cs.id);
+                                return {
                                     ...cs,
-                                    id: cs.id || 'slide_' + Math.random().toString(36).substring(2),
-                                    url: cs.url || ''
-                                }));
-                            }
+                                    url: (existing && existing.url) ? existing.url : (cs.url || '')
+                                };
+                            });
+                            this.saveLocalCache();
                         }
                         if (statusEl) {
                             statusEl.innerText = "Cloud Sync Active";
@@ -268,6 +312,7 @@
             }
 
             triggerCloudSync() {
+                this.saveLocalCache();
                 clearTimeout(this.syncTimeout);
                 this.syncTimeout = setTimeout(() => this.pushToCloud(), 1000);
             }
